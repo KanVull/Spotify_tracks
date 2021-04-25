@@ -1,0 +1,5 @@
+__pycache__
+.vscode/
+Env/
+important_data.xml
+.cache
