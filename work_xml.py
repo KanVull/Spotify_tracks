@@ -69,6 +69,7 @@ def Load_list():
             trackETTime.text = '%02d:%02d' % (minutes, seconds)
             list_of_tracks.append(Track(track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, playlists))
 
+    root.set('count', str(len(list_of_tracks)))
     indent(root)
     tree.write('allTracks.xml', encoding='utf-8', xml_declaration=True)
 
