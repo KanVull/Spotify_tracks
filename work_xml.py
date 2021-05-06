@@ -38,13 +38,15 @@ def Load_list():
             track = item['track']
             track_in_xml = root.findall('./track/[name="{}"][artist="{}"]'.format(track["name"], track['artists'][0]['name']))
             if track_in_xml:
+                _id = track_in_xml[0].attrib['id']
                 _name = track_in_xml[0].find('name').text
                 _artict = track_in_xml[0].find('artist').text
                 _time = track_in_xml[0].find('time').text
                 _downloaded = track_in_xml[0].attrib['downloaded']
                 _playlists = track_in_xml[0].find('playlists').findall('playlist')
                 _playlists = [pl.text for pl in _playlists]
-                list_of_tracks.append(Track(_name, _artict, _time, _downloaded, _playlists))
+                _date = track_in_xml[0].attrib['when']
+                list_of_tracks.append(Track(_id, _name, _artict, _time, _downloaded, _playlists, _date))
                 continue
             
             trackET = ET.SubElement(root, 'track')
@@ -57,6 +59,7 @@ def Load_list():
             for playlist in playlists:
                 p = ET.SubElement(trackETPlaylists, 'playlist')
                 p.text = playlist
+            trackET.set('id', track['id'])    
             trackET.set('downloaded', 'False')
             trackET.set('when', datetime.datetime.now().strftime("%d %B %Y %I:%M%p"))
             trackETName.text = track['name']
@@ -67,7 +70,7 @@ def Load_list():
             minutes = (millis / (1000 * 60)) % 60
             minutes = int(minutes)
             trackETTime.text = '%02d:%02d' % (minutes, seconds)
-            list_of_tracks.append(Track(track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, playlists))
+            list_of_tracks.append(Track(track['id'], track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, playlists, datetime.datetime.now().strftime("%d %B %Y %I:%M%p")))
 
     root.set('count', str(len(list_of_tracks)))
     indent(root)
@@ -98,5 +101,10 @@ def getPlaylistsOfTrack(track_id):
             names.append(name)
             continue
     return names    
-    
+
+def changeStatus(track_id, status):
+    track_in_xml = root.findall(f'./track[@id="{track_id}"]')
+    track_in_xml[0].set('downloaded', str(status))
+    tree.write('allTracks.xml', encoding='utf-8', xml_declaration=True)
+
 playlists = Load_playlists()
