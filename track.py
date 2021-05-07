@@ -27,8 +27,7 @@ class Track:
         self.date = date
 
     def to_mp3_name(self):
-        name = transliterate(f'{self.artist} - {self.name}.mp3')
-        return name
+        return transliterate(f'{self.artist} - {self.name}.mp3')
 
     def get_name(self):
         return f'{self.artist} - {self.name}'    

@@ -61,7 +61,7 @@ def Load_list():
                 p.text = playlist
             trackET.set('id', track['id'])    
             trackET.set('downloaded', 'False')
-            trackET.set('when', datetime.datetime.now().strftime("%d %B %Y %I:%M%p"))
+            trackET.set('when', datetime.datetime.now().strftime("%d %B %Y"))
             trackETName.text = track['name']
             trackETArtist.text = track['artists'][0]['name']
             millis = int(track['duration_ms'])
@@ -70,7 +70,7 @@ def Load_list():
             minutes = (millis / (1000 * 60)) % 60
             minutes = int(minutes)
             trackETTime.text = '%02d:%02d' % (minutes, seconds)
-            list_of_tracks.append(Track(track['id'], track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, playlists, datetime.datetime.now().strftime("%d %B %Y %I:%M%p")))
+            list_of_tracks.append(Track(track['id'], track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, playlists, datetime.datetime.now().strftime("%d %B %Y")))
 
     root.set('count', str(len(list_of_tracks)))
     indent(root)
