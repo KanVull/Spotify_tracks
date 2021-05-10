@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<tracks count="524">
+<tracks count="525">
     <track id="7oJPmo2YL566okOf1RQcCp" downloaded="False" when="08 May 2021">
         <name>luv(drunk)</name>
         <artist>Conro</artist>
@@ -20,8 +20,16 @@
         <name>Shelter</name>
         <artist>SBCR</artist>
         <time>05:15</time>
-        <playlists count="1">
+        <playlists count="9">
+            <playlist>Для всех</playlist>
+            <playlist>Русиан</playlist>
             <playlist>Долбёжка</playlist>
+            <playlist>OST's</playlist>
+            <playlist>Мелодично</playlist>
+            <playlist>Спокойно</playlist>
+            <playlist>Шумно поменбше</playlist>
+            <playlist>Быстро</playlist>
+            <playlist>Шумно</playlist>
         </playlists>
     </track>
     <track id="23JKD9Ez9MLzeJsEdRANnm" downloaded="False" when="08 May 2021">
@@ -3931,5 +3939,37 @@
         <artist>Nanoo</artist>
         <time>04:01</time>
         <playlists count="0" />
+    </track>
+    <track id="7aOjukNfFTgqiHAnzZAu8w" downloaded="False" when="09 May 2021">
+        <name>Восьмиклассница</name>
+        <artist>Kino</artist>
+        <time>02:45</time>
+        <playlists count="1">
+            <playlist>Русиан</playlist>
+        </playlists>
+    </track>
+    <track id="1ykTM5LK3K6Vasm1xjFMey" downloaded="False" when="09 May 2021">
+        <name>Видели ночь</name>
+        <artist>Kino</artist>
+        <time>03:08</time>
+        <playlists count="1">
+            <playlist>Русиан</playlist>
+        </playlists>
+    </track>
+    <track id="0HYXjmzjW2gZ0v5fitjSNS" downloaded="False" when="09 May 2021">
+        <name>Here She Comes Again</name>
+        <artist>Röyksopp</artist>
+        <time>05:02</time>
+        <playlists count="1">
+            <playlist>Спокойно</playlist>
+        </playlists>
+    </track>
+    <track id="5bg0nyN9ZXDXZerjog7qRb" downloaded="False" when="10 May 2021">
+        <name>Лютики</name>
+        <artist>просто Лера</artist>
+        <time>03:02</time>
+        <playlists count="1">
+            <playlist>Русиан</playlist>
+        </playlists>
     </track>
 </tracks>

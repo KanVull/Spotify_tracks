@@ -1,13 +1,13 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QCheckBox, QPushButton
 from PyQt5.Qt import *
-from tinytag import TinyTag
 
 import os
 import sys
 import pyperclip
 import webbrowser
-import work_xml
+import configparser
+from work_xml import SpotifyListener
 
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
@@ -21,9 +21,9 @@ class TrackWidget(QWidget):
             'YouTube': f"https://www.youtube.com/results?search_query={prepairedArtist.replace(' ', '+')}+-+{prepairedName.replace(' ', '+')}",
         }
 
-        self.setUI()
+        self.setupUI()
 
-    def setUI(self):
+    def setupUI(self):
         self.setMinimumSize(QSize(0,70))
         self.setMaximumSize(QSize(16777215, 70))
 
@@ -155,7 +155,15 @@ class TrackWidget(QWidget):
         else:
             work_xml.changeStatus(self.track.track_id, False)
             self.track.downloaded = False  
-        
+
+class scrollAreaTracks(QScrollArea):
+    def __init__(self, tracks, parent=None):
+        QScrollArea.__init__(self, parent=parent)
+
+        self.setupUI()
+
+    def setupUI(self):
+
 
 class Ui_Form(object):
     def setupUi(self, MainWindow):
@@ -163,7 +171,6 @@ class Ui_Form(object):
         MainWindow.setObjectName("form")
         MainWindow.resize(800, 800)
         MainWindow.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-        tracks = work_xml.Load_list()
 
         self.centralWidget = QWidget(MainWindow)
         self.centralWidget.setObjectName('centralwidget')
@@ -211,14 +218,15 @@ class Ui_Form(object):
             else:
                 widget.show()
 
-        
-
 class Main(QMainWindow, Ui_Form):
     def __init__(self, parent=None):
         super(Main, self).__init__(parent) 
         self.setupUi(self)        
 
 if __name__ == '__main__':
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    SPL = SpotifyListener()
     styleWidget = '''
             #scrollarea, #trackwidget, #listwidget {
                 background-color: #ffffff;
@@ -250,10 +258,5 @@ if __name__ == '__main__':
     ex  = Main()
     ex.show()
     sys.exit(app.exec_()) 
-
-
-
-# tracks = loadTracks()
-
 
 
