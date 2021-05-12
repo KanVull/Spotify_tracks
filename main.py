@@ -1,7 +1,21 @@
 from PyQt5 import QtCore
-from PyQt5 import Qt
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QCheckBox
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow, 
+    QDialog, 
+    QDialogButtonBox,
+    QMessageBox,
+    QVBoxLayout, 
+    QHBoxLayout,
+    QFormLayout, 
+    QWidget,
+    QPushButton,
+    QAction, 
+    QScrollArea, 
+    QLabel, 
+    QCheckBox,
+    QLineEdit,
+)
 
 import os
 import sys
@@ -25,8 +39,8 @@ class TrackWidget(QWidget):
         self.setupUI()
 
     def setupUI(self):
-        self.setMinimumSize(Qt.QSize(0,70))
-        self.setMaximumSize(Qt.QSize(16777215, 70))
+        self.setMinimumSize(QtCore.QSize(0,70))
+        self.setMaximumSize(QtCore.QSize(16777215, 70))
 
         self.widgetlayout = QHBoxLayout(self)
 
@@ -95,7 +109,7 @@ class TrackWidget(QWidget):
 
         self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         for key in self.links.keys():
-            action = QtWidgets.QAction(self)
+            action = QAction(self)
             action.setText(key)
             action.triggered.connect(self.download)
             self.addAction(action)
@@ -124,11 +138,11 @@ class TrackWidget(QWidget):
 
     def changeFileProperties(self, path):
         if path[-3:] != 'mp3':
-            msgBox = QtWidgets.QMessageBox()
-            msgBox.setIcon(QtWidgets.QMessageBox.Warning)
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Warning)
             msgBox.setText("Its not a mp3 file")
             msgBox.setWindowTitle("Error")
-            msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
             new_path = path[1:path.rfind('/') + 1] + self.track.to_mp3_name()
@@ -158,6 +172,7 @@ class TrackWidget(QWidget):
             scroll = scroll.parent()
         scroll.spl.changeStatus(self.track.track_id, True if state == 2 else False)          
 
+
 class scrollAreaTracks(QScrollArea):
     def __init__(self, spl, parent=None):
         QScrollArea.__init__(self, parent=parent)
@@ -177,13 +192,14 @@ class scrollAreaTracks(QScrollArea):
 
 
 class Ui_Form(object):
-    def setupUi(self, MainWindow):
-        MainWindow.setWindowTitle("Your Spoty")
-        MainWindow.setObjectName("form")
-        MainWindow.resize(800, 800)
-        MainWindow.setAttribute(QtCore.Qt.WA_StyledBackground, True)
+    def setupUI(self, MainWindow):
+        self.MainWindow = MainWindow
+        self.MainWindow.setWindowTitle("Your Spoty")
+        self.MainWindow.setObjectName("form")
+        self.MainWindow.resize(800, 800)
+        self.MainWindow.setAttribute(QtCore.Qt.WA_StyledBackground, True)
 
-        self.centralWidget = QWidget(MainWindow)
+        self.centralWidget = QWidget(self.MainWindow)
         self.centralWidget.setObjectName('centralwidget')
         self.verticalLayout = QVBoxLayout()
         self.verticalLayout.setContentsMargins(0,0,0,0)
@@ -200,9 +216,6 @@ class Ui_Form(object):
             self.setupSpotifyError()
         else:
             self.setupList()
-
-        MainWindow.setCentralWidget(self.centralWidget)
-        MainWindow.setContentsMargins(0,0,0,0)
 
     def changeCheckStatus(self, state):
         for widget in self.scrollArea.widget().children():
@@ -226,49 +239,181 @@ class Ui_Form(object):
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
 
-    def createEmptyXml(self):
-        with open('allTracks.xml', 'w') as xmlfile:
-            xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
-
     def setupList(self):
         spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
         if not os.path.exists('allTracks.xml'):
             self.createEmptyXml()
         spl.setXMLFile('allTracks.xml')
         spl.Load_list()    
+
         self.scrollArea = scrollAreaTracks(spl, self.centralWidget)  
 
+        self.task1 = MyProccess(self.centralWidget, self.config)
+        self.task1.newProgress.connect(self.showLoadingWidget)
+        self.task1.finished.connect(self.showLoadedList)
+        self.task1.start()
+
+    def setupSpotifyError(self):
+        labelWarning = QLabel(self.centralWidget)
+        labelWarning.setText('You need to connect with app by addition your spotify client app data into config.ini file')
+        labelWarning.setAlignment(QtCore.Qt.AlignCenter)
+
+        labelInfo = QLabel(self.centralWidget)
+        labelInfo.setText('Create your app with random name and get "client id" and "client secret"')
+        labelInfo.setAlignment(QtCore.Qt.AlignCenter)
+
+        buttonLink = QPushButton(self.centralWidget)
+        buttonLink.setText('Create App')
+        buttonLink.clicked.connect(self.creationSpotifyApp_Click)
+
+        self.verticalLayout.addStretch()
+        self.verticalLayout.addWidget(labelWarning)
+        self.verticalLayout.addWidget(labelInfo)
+        self.verticalLayout.addWidget(buttonLink)
+        self.verticalLayout.addStretch()
+        self.verticalLayout.setContentsMargins(0,0,0,0)
+
+        self.centralWidgetLayout.addLayout(self.verticalLayout)
+        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
+        self.MainWindow.setCentralWidget(self.centralWidget)
+        self.MainWindow.setContentsMargins(0,0,0,0)
+
+    def showLoadingWidget(self):
+        self.clearLayout(self.verticalLayout)
+        loadingWidget = LoadingWindow(self.centralWidget)
+        self.verticalLayout.addWidget(loadingWidget)
+        self.verticalLayout.setContentsMargins(0,0,0,0)
+        self.centralWidgetLayout.addLayout(self.verticalLayout)
+        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
+        self.MainWindow.setCentralWidget(self.centralWidget)
+        self.MainWindow.setContentsMargins(0,0,0,0)
+
+    def showLoadedList(self):
+        self.clearLayout(self.verticalLayout)
+        self.scrollArea = self.task1.scrollArea
         self.filtersLayout = QHBoxLayout()
-        self.filtersLayout.setContentsMargins(10,0,0,8)
+        self.filtersLayout.setContentsMargins(10, 0, 0, 8)
         self.filterDownloaded = QCheckBox(self.centralWidget) 
         self.filterDownloaded.setText('Only not downloaded')
         self.filterDownloaded.setToolTip('Show only not downloaded') 
         self.filterDownloaded.stateChanged.connect(self.changeCheckStatus) 
         self.filtersLayout.addWidget(self.filterDownloaded)
-
         self.verticalLayout.addWidget(self.scrollArea)
         self.verticalLayout.addLayout(self.filtersLayout)
         self.verticalLayout.setContentsMargins(0,0,0,0)
         self.centralWidgetLayout.addLayout(self.verticalLayout)
         self.centralWidgetLayout.setContentsMargins(0,0,0,0)
+        self.MainWindow.setCentralWidget(self.centralWidget)
+        self.MainWindow.setContentsMargins(0, 0, 0, 0)
 
-    def setupSpotifyError(self):
-        self.errorWindow = QWidget(self.centralWidget)
-        self.errorWindowLayout = QVBoxLayout()
-        label = QLabel(self.centralWidget)
-        label.text = 'You need to config with app by addition your spotify client app data into config.ini file'
-        # label.setAlignment()
+    def creationSpotifyApp_Click(self):
+        enterSpotifyDataQDialog = EnterSpotifyDataQDialog()
+        if enterSpotifyDataQDialog.exec_():
+            values = enterSpotifyDataQDialog.getValues()
+            self.config['KEYS']['client_id'] = values['client_id']
+            self.config['KEYS']['client_secret'] = values['client_secret']
+            with open('config.ini', 'w') as configfile:
+                self.config.write(configfile)
+            self.clearLayout(self.verticalLayout)
+            self.setupList()
 
-        self.verticalLayout.addWidget(self.errorWindow)
-        self.verticalLayout.setContentsMargins(0,0,0,0)
-        self.centralWidgetLayout.addLayout(self.verticalLayout)
-        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
+    def clearLayout(self, layout):
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()        
 
+
+class LoadingWindow(QWidget):
+    def __init__(self, parent=None):
+        QWidget.__init__(self, parent=parent)
+        self.setupUI()
+
+    def setupUI(self):
+        label = QLabel(self)
+        label.setText('Loading...')
+        label.setAlignment(QtCore.Qt.AlignCenter)
+
+class MyProccess(QtCore.QThread):
+    newProgress = QtCore.pyqtSignal(str)
+    def __init__(self, parent_widget, configfile):
+        super(MyProccess, self).__init__()
+        self.parent_widget = parent_widget
+        self.configfile = configfile
+
+    def createEmptyXml(self):
+        with open('allTracks.xml', 'w') as xmlfile:
+            xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
+
+    def run(self):
+        spl = SpotifyListener(self.configfile['KEYS']['client_id'], self.configfile['KEYS']['client_secret'], self.configfile['KEYS']['redirect_uri'])
+        if not os.path.exists('allTracks.xml'):
+            self.createEmptyXml()
+        spl.setXMLFile('allTracks.xml')
+        spl.Load_list()
+
+        self.scrollArea = scrollAreaTracks(spl, self.parent_widget.centralWidget) 
+
+class UI_EnterSpotifyDataQDialog(object):
+    def setupUI(self, Window):
+        webbrowser.open("https://developer.spotify.com/dashboard/applications")
+        Window.setWindowTitle("Enter your spotify data")
+        Window.setFixedSize(QtCore.QSize(400, 100))
+        self.client_id = ''
+        self.client_secret = ''
+        dlgLayout = QVBoxLayout()
+        formLayout = QFormLayout()
+        self.client_id_LineEdit = QLineEdit()
+        self.client_secret_LineEdit = QLineEdit()
+        formLayout.addRow("Client ID", self.client_id_LineEdit)
+        formLayout.addRow("Client Secret", self.client_secret_LineEdit)
+
+        btnBox = QDialogButtonBox()
+        btnBox.setStandardButtons(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btnBox.accepted.connect(self.accept)
+        btnBox.rejected.connect(self.reject)
+
+        dlgLayout.addLayout(formLayout)
+        dlgLayout.addWidget(btnBox)
+        Window.setLayout(dlgLayout)
+
+    def accept(self):
+        client_id = self.client_id_LineEdit.text()
+        client_secret = self.client_secret_LineEdit.text()
+
+        if client_id == '' or client_secret == '':
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setText("Data Incorrect")
+            msgBox.setWindowTitle("Error")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.exec()
+        else:
+            self.client_id = client_id
+            self.client_secret = client_secret
+            self.accept()
+
+    def reject(self):
+        self.reject()
+
+    def getValues(self):
+        return {
+            'client_id': self.client_id, 
+            'client_secret': self.client_secret,
+        }
+
+
+class EnterSpotifyDataQDialog(QDialog, UI_EnterSpotifyDataQDialog):
+    def __init__(self, parent=None):
+        super(EnterSpotifyDataQDialog, self).__init__(parent)
+        self.setupUI(self)
 
 class Main(QMainWindow, Ui_Form):
     def __init__(self, parent=None):
         super(Main, self).__init__(parent) 
-        self.setupUi(self)        
+        self.setupUI(self)        
 
 if __name__ == '__main__':
     styleWidget = '''
@@ -297,7 +442,7 @@ if __name__ == '__main__':
                 text-align: right;
             }
         '''
-    app = Qt.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
     ex  = Main()
     ex.show()

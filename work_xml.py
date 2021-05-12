@@ -1,16 +1,16 @@
 import datetime
-import configparser
 import xml.etree.ElementTree as ET
-from track import Track
-import spotipy
+from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
+from track import Track
 
 class SpotifyListener():
     def __init__(self, client_id, client_secret, redirect_uri):
-        self.sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id,
-                                               client_secret=client_secret,
-                                               redirect_uri=redirect_uri,
-                                               scope="user-library-read"))
+        SpOA = SpotifyOAuth(client_id=client_id,
+                            client_secret=client_secret,
+                            redirect_uri=redirect_uri,
+                            scope="user-library-read")            
+        self.sp = Spotify(auth_manager=SpOA)                                    
         self.playlists = self.Load_playlists()
 
     def setXMLFile(self, path):
@@ -19,8 +19,8 @@ class SpotifyListener():
         self.root = self.tree.getroot()
 
     def Load_playlists(self):
-        results = self.sp.current_user_playlists(limit=50, offset=0)
-        playlists = results['items']
+        self.results = self.sp.current_user_playlists(limit=50, offset=0)
+        playlists = self.results['items']
         dict_playlists = {playlist['name']: [] for playlist in playlists}
         for playlist in playlists:
             for i in range(0, 10000, 100):
