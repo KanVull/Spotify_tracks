@@ -1,6 +1,7 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QCheckBox, QPushButton
-from PyQt5.Qt import *
+from PyQt5 import QtCore
+from PyQt5 import Qt
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QCheckBox
 
 import os
 import sys
@@ -24,8 +25,8 @@ class TrackWidget(QWidget):
         self.setupUI()
 
     def setupUI(self):
-        self.setMinimumSize(QSize(0,70))
-        self.setMaximumSize(QSize(16777215, 70))
+        self.setMinimumSize(Qt.QSize(0,70))
+        self.setMaximumSize(Qt.QSize(16777215, 70))
 
         self.widgetlayout = QHBoxLayout(self)
 
@@ -34,9 +35,8 @@ class TrackWidget(QWidget):
         self.layoutnames.setObjectName('layoutnames')
 
         self.labelname = QLabel(self)
-        self.labelname.setTextFormat(Qt.MarkdownText)
         self.labelname.setScaledContents(True)
-        self.labelname.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.labelname.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
         self.labelname.setWordWrap(True)
         self.labelname.setMargin(0)
         self.labelname.setIndent(-1)
@@ -93,9 +93,9 @@ class TrackWidget(QWidget):
 
         self.setAcceptDrops(True)
 
-        self.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         for key in self.links.keys():
-            action = QAction(self)
+            action = QtWidgets.QAction(self)
             action.setText(key)
             action.triggered.connect(self.download)
             self.addAction(action)
@@ -124,11 +124,11 @@ class TrackWidget(QWidget):
 
     def changeFileProperties(self, path):
         if path[-3:] != 'mp3':
-            msgBox = QMessageBox()
-            msgBox.setIcon(QMessageBox.Warning)
+            msgBox = QtWidgets.QMessageBox()
+            msgBox.setIcon(QtWidgets.QMessageBox.Warning)
             msgBox.setText("Its not a mp3 file")
             msgBox.setWindowTitle("Error")
-            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msgBox.exec()
         else:
             new_path = path[1:path.rfind('/') + 1] + self.track.to_mp3_name()
@@ -144,25 +144,36 @@ class TrackWidget(QWidget):
         pyperclip.copy(self.track.get_name())
         
     def changeCheckStatus(self, state):
-        if state == Qt.Checked:
-            work_xml.changeStatus(self.track.track_id, True)
-            self.track.downloaded = True
+        if state == QtCore.Qt.Checked:
             main = self.parent()
+            self.track.downloaded = True
             while type(main) != Main:
                 main = main.parent()
-            if main.filterDownloaded.checkState() == Qt.Checked:
+            if main.filterDownloaded.checkState() == QtCore.Qt.Checked:
                 self.hide()
         else:
-            work_xml.changeStatus(self.track.track_id, False)
-            self.track.downloaded = False  
+            self.track.downloaded = False
+        scroll = self.parent()
+        while type(scroll) != scrollAreaTracks:
+            scroll = scroll.parent()
+        scroll.spl.changeStatus(self.track.track_id, True if state == 2 else False)          
 
 class scrollAreaTracks(QScrollArea):
-    def __init__(self, tracks, parent=None):
+    def __init__(self, spl, parent=None):
         QScrollArea.__init__(self, parent=parent)
-
+        self.spl = spl
         self.setupUI()
 
     def setupUI(self):
+        self.setObjectName("scrollarea")
+        self.setWidgetResizable(True)
+        self.scrollAreaWidgetContents = QWidget()
+        self.scrollAreaWidgetContentsLayout = QVBoxLayout(self.scrollAreaWidgetContents)
+        self.scrollAreaWidgetContentsLayout.setContentsMargins(0,0,0,0)
+        self.scrollAreaWidgetContentsLayout.setSpacing(0)
+        for track in self.spl.list_of_tracks:
+            self.scrollAreaWidgetContentsLayout.addWidget(TrackWidget(track))
+        self.setWidget(self.scrollAreaWidgetContents)
 
 
 class Ui_Form(object):
@@ -179,17 +190,53 @@ class Ui_Form(object):
         self.centralWidgetLayout = QVBoxLayout(self.centralWidget)
         self.centralWidgetLayout.setContentsMargins(0,0,0,0)
 
-        self.scrollArea = QScrollArea(self.centralWidget)
-        self.scrollArea.setObjectName("scrollarea")
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollAreaWidgetContents = QWidget()
-        self.scrollAreaWidgetContentsLayout = QVBoxLayout(self.scrollAreaWidgetContents)
-        self.scrollAreaWidgetContentsLayout.setContentsMargins(0,0,0,0)
-        self.scrollAreaWidgetContentsLayout.setSpacing(0)
-        for track in tracks:
-            self.scrollAreaWidgetContentsLayout.addWidget(TrackWidget(track))
-            
-        self.scrollArea.setWidget(self.scrollAreaWidgetContents)    
+        self.config = configparser.ConfigParser()
+        if os.path.exists('config.ini'):
+            self.config.read("config.ini")
+        else:
+            self.createConfig()
+
+        if self.config['KEYS']['client_id'] == '' or self.config['KEYS']['client_secret'] == '':
+            self.setupSpotifyError()
+        else:
+            self.setupList()
+
+        MainWindow.setCentralWidget(self.centralWidget)
+        MainWindow.setContentsMargins(0,0,0,0)
+
+    def changeCheckStatus(self, state):
+        for widget in self.scrollArea.widget().children():
+            if type(widget) != TrackWidget:
+                continue
+            if state == QtCore.Qt.Checked:
+                if widget.track.downloaded == True:
+                    widget.hide()
+            else:
+                widget.show()
+
+    def createConfig(self):
+        self.config['KEYS'] = {
+            'client_id': '',
+            'client_secret': '',
+            'redirect_uri': 'https://mysite.com'
+        } 
+        self.config['PATHS'] = {
+            'path_of_downloads': ''
+        }
+        with open('config.ini', 'w') as configfile:
+            self.config.write(configfile)
+
+    def createEmptyXml(self):
+        with open('allTracks.xml', 'w') as xmlfile:
+            xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
+
+    def setupList(self):
+        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
+        if not os.path.exists('allTracks.xml'):
+            self.createEmptyXml()
+        spl.setXMLFile('allTracks.xml')
+        spl.Load_list()    
+        self.scrollArea = scrollAreaTracks(spl, self.centralWidget)  
 
         self.filtersLayout = QHBoxLayout()
         self.filtersLayout.setContentsMargins(10,0,0,8)
@@ -205,18 +252,18 @@ class Ui_Form(object):
         self.centralWidgetLayout.addLayout(self.verticalLayout)
         self.centralWidgetLayout.setContentsMargins(0,0,0,0)
 
-        MainWindow.setCentralWidget(self.centralWidget)
-        MainWindow.setContentsMargins(0,0,0,0)
+    def setupSpotifyError(self):
+        self.errorWindow = QWidget(self.centralWidget)
+        self.errorWindowLayout = QVBoxLayout()
+        label = QLabel(self.centralWidget)
+        label.text = 'You need to config with app by addition your spotify client app data into config.ini file'
+        # label.setAlignment()
 
-    def changeCheckStatus(self, state):
-        for widget in self.scrollArea.widget().children():
-            if type(widget) != TrackWidget:
-                continue
-            if state == Qt.Checked:
-                if widget.track.downloaded == True:
-                    widget.hide()
-            else:
-                widget.show()
+        self.verticalLayout.addWidget(self.errorWindow)
+        self.verticalLayout.setContentsMargins(0,0,0,0)
+        self.centralWidgetLayout.addLayout(self.verticalLayout)
+        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
+
 
 class Main(QMainWindow, Ui_Form):
     def __init__(self, parent=None):
@@ -224,9 +271,6 @@ class Main(QMainWindow, Ui_Form):
         self.setupUi(self)        
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read("config.ini")
-    SPL = SpotifyListener()
     styleWidget = '''
             #scrollarea, #trackwidget, #listwidget {
                 background-color: #ffffff;
@@ -253,7 +297,7 @@ if __name__ == '__main__':
                 text-align: right;
             }
         '''
-    app = QApplication(sys.argv)
+    app = Qt.QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
     ex  = Main()
     ex.show()

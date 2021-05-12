@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<tracks count="525">
+<tracks count="528">
     <track id="7oJPmo2YL566okOf1RQcCp" downloaded="False" when="08 May 2021">
         <name>luv(drunk)</name>
         <artist>Conro</artist>
@@ -20,16 +20,8 @@
         <name>Shelter</name>
         <artist>SBCR</artist>
         <time>05:15</time>
-        <playlists count="9">
-            <playlist>Для всех</playlist>
-            <playlist>Русиан</playlist>
+        <playlists count="1">
             <playlist>Долбёжка</playlist>
-            <playlist>OST's</playlist>
-            <playlist>Мелодично</playlist>
-            <playlist>Спокойно</playlist>
-            <playlist>Шумно поменбше</playlist>
-            <playlist>Быстро</playlist>
-            <playlist>Шумно</playlist>
         </playlists>
     </track>
     <track id="23JKD9Ez9MLzeJsEdRANnm" downloaded="False" when="08 May 2021">
@@ -3970,6 +3962,30 @@
         <time>03:02</time>
         <playlists count="1">
             <playlist>Русиан</playlist>
+        </playlists>
+    </track>
+    <track id="18cCBvygH6yEFDY0cYN3wT" downloaded="False" when="12 May 2021">
+        <name>Divinity</name>
+        <artist>Porter Robinson</artist>
+        <time>06:08</time>
+        <playlists count="1">
+            <playlist>Шумно поменбше</playlist>
+        </playlists>
+    </track>
+    <track id="4DHkzbZSWxsCsvRoEzr28A" downloaded="False" when="12 May 2021">
+        <name>Years Of War</name>
+        <artist>Porter Robinson</artist>
+        <time>03:56</time>
+        <playlists count="1">
+            <playlist>Мелодично</playlist>
+        </playlists>
+    </track>
+    <track id="3ReQhz8xKUpZ7HqmA6N9rO" downloaded="False" when="12 May 2021">
+        <name>Bourbon</name>
+        <artist>Lit Lords</artist>
+        <time>02:16</time>
+        <playlists count="1">
+            <playlist>Шумно</playlist>
         </playlists>
     </track>
 </tracks>

@@ -11,8 +11,6 @@ class SpotifyListener():
                                                client_secret=client_secret,
                                                redirect_uri=redirect_uri,
                                                scope="user-library-read"))
-        if self.sp:
-            pass
         self.playlists = self.Load_playlists()
 
     def setXMLFile(self, path):
@@ -21,25 +19,25 @@ class SpotifyListener():
         self.root = self.tree.getroot()
 
     def Load_playlists(self):
-        results = self.sp.current_user_playlists(limit=100, offset=0)
+        results = self.sp.current_user_playlists(limit=50, offset=0)
         playlists = results['items']
         dict_playlists = {playlist['name']: [] for playlist in playlists}
         for playlist in playlists:
             for i in range(0, 10000, 100):
-                tracks = sp.playlist_tracks(playlist['id'], limit=100, offset=i)
+                tracks = self.sp.playlist_tracks(playlist['id'], limit=100, offset=i)
                 if not tracks['items']:
                     break
                 dict_playlists[playlist['name']] += [track['track']['id'] for track in tracks['items']]
         return dict_playlists
 
     def Load_list(self):
-        list_of_tracks = []
+        self.list_of_tracks = []
         for i in range(0,100000,50):
             results = self.sp.current_user_saved_tracks(limit=50, offset=i)
             if not results['items']:
                 break
             
-            for idx, item in enumerate(results['items']):
+            for item in results['items']:
                 track = item['track']
                 track_in_xml = self.root.findall(f'./track[@id="{track["id"]}"]')
                 current_playlists = self.getPlaylistsOfTrack(track['id'])
@@ -56,13 +54,13 @@ class SpotifyListener():
                         parent = track_in_xml[0].find('playlists')
                         for element in parent.findall('playlist'):
                             parent.remove(element)
-                        for playlist in playlists:
+                        for playlist in current_playlists:
                             _new_playlist = ET.SubElement(parent, 'playlist')
                             _new_playlist.text = playlist
-                        parent.set('count', str(len(playlists)))
+                        parent.set('count', str(len(current_playlists)))
                     _playlists = current_playlists                
                     _date = track_in_xml[0].attrib['when']
-                    list_of_tracks.append(Track(_id, _name, _artict, _time, _downloaded, _playlists, _date))
+                    self.list_of_tracks.append(Track(_id, _name, _artict, _time, _downloaded, _playlists, _date))
                     continue
                 
                 trackET = ET.SubElement(self.root, 'track')
@@ -70,7 +68,7 @@ class SpotifyListener():
                 trackETArtist = ET.SubElement(trackET, 'artist')
                 trackETTime = ET.SubElement(trackET, 'time')
                 trackETPlaylists = ET.SubElement(trackET, 'playlists')
-                trackETPlaylists.set('count', str(len(playlists)))
+                trackETPlaylists.set('count', str(len(current_playlists)))
                 for playlist in current_playlists:
                     p = ET.SubElement(trackETPlaylists, 'playlist')
                     p.text = playlist
@@ -85,13 +83,11 @@ class SpotifyListener():
                 minutes = (millis / (1000 * 60)) % 60
                 minutes = int(minutes)
                 trackETTime.text = '%02d:%02d' % (minutes, seconds)
-                list_of_tracks.append(Track(track['id'], track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, playlists, datetime.datetime.now().strftime("%d %B %Y")))
+                self.list_of_tracks.append(Track(track['id'], track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, current_playlists, datetime.datetime.now().strftime("%d %B %Y")))
 
-        self.root.set('count', str(len(list_of_tracks)))
-        self.indent(root)
-        self.tree.write('allTracks.xml', encoding='utf-8', xml_declaration=True)
-
-        return list_of_tracks
+        self.root.set('count', str(len(self.list_of_tracks)))
+        self.indent(self.root)
+        self.tree.write(self.path, encoding='utf-8', xml_declaration=True)
 
     def indent(self, elem, level=0):
         i = "\n" + level * "    "
@@ -117,6 +113,6 @@ class SpotifyListener():
         return names    
 
     def changeStatus(self, track_id, status):
-        track_in_xml = self.froot.findall(f'./track[@id="{track_id}"]')
+        track_in_xml = self.root.findall(f'./track[@id="{track_id}"]')
         track_in_xml[0].set('downloaded', str(status))
         self.tree.write(self.path, encoding='utf-8', xml_declaration=True)
