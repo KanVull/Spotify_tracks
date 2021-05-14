@@ -1,4 +1,4 @@
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow, 
@@ -16,7 +16,6 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QLineEdit,
 )
-
 import os
 import sys
 import pyperclip
@@ -240,18 +239,61 @@ class Ui_Form(object):
             self.config.write(configfile)
 
     def setupList(self):
-        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
-        if not os.path.exists('allTracks.xml'):
-            self.createEmptyXml()
-        spl.setXMLFile('allTracks.xml')
-        spl.Load_list()    
+        self.thread = QtCore.QThread()
+        self.loadSpotifyTracks_QObject = LoadSpotifyTracks_QObject(self.config)
+        self.loadSpotifyTracks_QObject.moveToThread(self.thread)
+        self.loadSpotifyTracks_QObject.loaded_list.connect(self.setScrollArea)
+        self.thread.started.connect(self.setLoadingScreen)
+        self.thread.started.connect(self.loadSpotifyTracks_QObject.run)
+        self.thread.start()
+        
+    def setLoadingScreen(self):
+        self.clearLayout(self.verticalLayout)
+        loadingLabel = QLabel(self.centralWidget)
+        loadingLabel.setText('Loading Your Playlist')
+        loadingLabel.setFont(QtGui.QFont('Arial', 25))
+        loadingLabel.setAlignment(QtCore.Qt.AlignCenter)
 
-        self.scrollArea = scrollAreaTracks(spl, self.centralWidget)  
+        horizontalLabel = QHBoxLayout()
+        gifLabel = QLabel(self.centralWidget)
+        gifLabel.setMinimumSize(QtCore.QSize(180, 85))
+        gifLabel.setMaximumSize(QtCore.QSize(180, 85))
+        gifLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.movie = QtGui.QMovie("./pictures/loading.gif")
+        gifLabel.setMovie(self.movie)
+        horizontalLabel.addStretch(0)
+        horizontalLabel.addWidget(gifLabel)
+        horizontalLabel.addStretch(0)
+        self.movie.start()
 
-        self.task1 = MyProccess(self.centralWidget, self.config)
-        self.task1.newProgress.connect(self.showLoadingWidget)
-        self.task1.finished.connect(self.showLoadedList)
-        self.task1.start()
+        self.verticalLayout.addStretch(0)
+        self.verticalLayout.addWidget(loadingLabel)
+        self.verticalLayout.addLayout(horizontalLabel)
+        self.verticalLayout.addStretch(0)
+        self.setMyCentralWidget()
+
+    def setScrollArea(self, spl):
+        self.clearLayout(self.verticalLayout)
+        self.scrollArea = scrollAreaTracks(spl, self.centralWidget) 
+        self.filtersLayout = QHBoxLayout()
+        self.filtersLayout.setContentsMargins(10, 0, 0, 8)
+        self.filterDownloaded = QCheckBox(self.centralWidget) 
+        self.filterDownloaded.setText('Only not downloaded')
+        self.filterDownloaded.setToolTip('Show only not downloaded') 
+        self.filterDownloaded.stateChanged.connect(self.changeCheckStatus) 
+        self.filtersLayout.addWidget(self.filterDownloaded)
+        self.verticalLayout.addWidget(self.scrollArea)
+        self.verticalLayout.addLayout(self.filtersLayout)
+        self.movie.stop()
+        self.setMyCentralWidget()
+
+    def setMyCentralWidget(self):
+        self.verticalLayout.setContentsMargins(0,0,0,0)
+        self.centralWidgetLayout.addLayout(self.verticalLayout)
+        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
+        self.MainWindow.setCentralWidget(self.centralWidget)
+        self.MainWindow.setContentsMargins(0, 0, 0, 0)
+
 
     def setupSpotifyError(self):
         labelWarning = QLabel(self.centralWidget)
@@ -278,40 +320,13 @@ class Ui_Form(object):
         self.MainWindow.setCentralWidget(self.centralWidget)
         self.MainWindow.setContentsMargins(0,0,0,0)
 
-    def showLoadingWidget(self):
-        self.clearLayout(self.verticalLayout)
-        loadingWidget = LoadingWindow(self.centralWidget)
-        self.verticalLayout.addWidget(loadingWidget)
-        self.verticalLayout.setContentsMargins(0,0,0,0)
-        self.centralWidgetLayout.addLayout(self.verticalLayout)
-        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
-        self.MainWindow.setCentralWidget(self.centralWidget)
-        self.MainWindow.setContentsMargins(0,0,0,0)
-
-    def showLoadedList(self):
-        self.clearLayout(self.verticalLayout)
-        self.scrollArea = self.task1.scrollArea
-        self.filtersLayout = QHBoxLayout()
-        self.filtersLayout.setContentsMargins(10, 0, 0, 8)
-        self.filterDownloaded = QCheckBox(self.centralWidget) 
-        self.filterDownloaded.setText('Only not downloaded')
-        self.filterDownloaded.setToolTip('Show only not downloaded') 
-        self.filterDownloaded.stateChanged.connect(self.changeCheckStatus) 
-        self.filtersLayout.addWidget(self.filterDownloaded)
-        self.verticalLayout.addWidget(self.scrollArea)
-        self.verticalLayout.addLayout(self.filtersLayout)
-        self.verticalLayout.setContentsMargins(0,0,0,0)
-        self.centralWidgetLayout.addLayout(self.verticalLayout)
-        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
-        self.MainWindow.setCentralWidget(self.centralWidget)
-        self.MainWindow.setContentsMargins(0, 0, 0, 0)
-
     def creationSpotifyApp_Click(self):
         enterSpotifyDataQDialog = EnterSpotifyDataQDialog()
         if enterSpotifyDataQDialog.exec_():
             values = enterSpotifyDataQDialog.getValues()
             self.config['KEYS']['client_id'] = values['client_id']
             self.config['KEYS']['client_secret'] = values['client_secret']
+            self.config['KEYS']['redirect_uri'] = values['redirect_uri']
             with open('config.ini', 'w') as configfile:
                 self.config.write(configfile)
             self.clearLayout(self.verticalLayout)
@@ -323,50 +338,46 @@ class Ui_Form(object):
             if child.widget():
                 child.widget().deleteLater()        
 
-
-class LoadingWindow(QWidget):
-    def __init__(self, parent=None):
-        QWidget.__init__(self, parent=parent)
-        self.setupUI()
-
-    def setupUI(self):
-        label = QLabel(self)
-        label.setText('Loading...')
-        label.setAlignment(QtCore.Qt.AlignCenter)
-
-class MyProccess(QtCore.QThread):
-    newProgress = QtCore.pyqtSignal(str)
-    def __init__(self, parent_widget, configfile):
-        super(MyProccess, self).__init__()
-        self.parent_widget = parent_widget
-        self.configfile = configfile
+class LoadSpotifyTracks_QObject(QtCore.QObject):
+    loaded_list = QtCore.pyqtSignal(SpotifyListener)
+    
+    def __init__(self, config):
+        QtCore.QObject.__init__(self)
+        self.config = config
 
     def createEmptyXml(self):
         with open('allTracks.xml', 'w') as xmlfile:
             xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
 
     def run(self):
-        spl = SpotifyListener(self.configfile['KEYS']['client_id'], self.configfile['KEYS']['client_secret'], self.configfile['KEYS']['redirect_uri'])
+        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
         if not os.path.exists('allTracks.xml'):
             self.createEmptyXml()
         spl.setXMLFile('allTracks.xml')
         spl.Load_list()
+        self.loaded_list.emit(spl)    
 
-        self.scrollArea = scrollAreaTracks(spl, self.parent_widget.centralWidget) 
 
 class UI_EnterSpotifyDataQDialog(object):
     def setupUI(self, Window):
         webbrowser.open("https://developer.spotify.com/dashboard/applications")
         Window.setWindowTitle("Enter your spotify data")
-        Window.setFixedSize(QtCore.QSize(400, 100))
+        Window.setFixedSize(QtCore.QSize(400, 160))
         self.client_id = ''
         self.client_secret = ''
         dlgLayout = QVBoxLayout()
         formLayout = QFormLayout()
         self.client_id_LineEdit = QLineEdit()
         self.client_secret_LineEdit = QLineEdit()
+        self.redirect_uri_LineEdit = QLineEdit()
+        self.redirect_uri_LineEdit.setText('http://mysite.com')
+        hint = QLabel()
+        hint.setText("Set http://mysite.com in your spotify app or change for your custom")
+        hint.setWordWrap(True)
         formLayout.addRow("Client ID", self.client_id_LineEdit)
         formLayout.addRow("Client Secret", self.client_secret_LineEdit)
+        formLayout.addRow("Redirect URI", self.redirect_uri_LineEdit)
+        formLayout.addRow("", hint)
 
         btnBox = QDialogButtonBox()
         btnBox.setStandardButtons(
@@ -382,8 +393,9 @@ class UI_EnterSpotifyDataQDialog(object):
     def accept(self):
         client_id = self.client_id_LineEdit.text()
         client_secret = self.client_secret_LineEdit.text()
+        redirect_uri = self.redirect_uri_LineEdit.text()
 
-        if client_id == '' or client_secret == '':
+        if client_id == '' or client_secret == '' or redirect_uri == '':
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Warning)
             msgBox.setText("Data Incorrect")
@@ -393,6 +405,7 @@ class UI_EnterSpotifyDataQDialog(object):
         else:
             self.client_id = client_id
             self.client_secret = client_secret
+            self.redirect_uri = redirect_uri
             self.accept()
 
     def reject(self):
@@ -402,6 +415,7 @@ class UI_EnterSpotifyDataQDialog(object):
         return {
             'client_id': self.client_id, 
             'client_secret': self.client_secret,
+            'redirect_uri': self.redirect_uri,
         }
 
 
