@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
+    QFileDialog,
     QMainWindow, 
     QDialog, 
     QDialogButtonBox,
@@ -22,6 +23,7 @@ import pyperclip
 import webbrowser
 import configparser
 from work_xml import SpotifyListener
+
 
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
@@ -144,9 +146,9 @@ class TrackWidget(QWidget):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
-            new_path = path[1:path.rfind('/') + 1] + self.track.to_mp3_name()
-            os.rename(path[1:], new_path)
-            self.checkout.setChecked(True)
+            rename_replace_window = ReplacingWindow(self.track, path)
+            if rename_replace_window.exec_():
+                self.checkout.setChecked(True)
 
     def eventFilter(self, obj, event):
         if obj == self and event.type() == QtCore.QEvent.MouseButtonDblClick:
@@ -190,6 +192,192 @@ class scrollAreaTracks(QScrollArea):
         self.setWidget(self.scrollAreaWidgetContents)
 
 
+class LoadSpotifyTracks_QObject(QtCore.QObject):
+    loaded_list = QtCore.pyqtSignal(SpotifyListener)
+    
+    def __init__(self, config):
+        QtCore.QObject.__init__(self)
+        self.config = config
+
+    def createEmptyXml(self):
+        with open('allTracks.xml', 'w') as xmlfile:
+            xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
+
+    def run(self):
+        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
+        if not os.path.exists('allTracks.xml'):
+            self.createEmptyXml()
+        spl.Load_playlists()
+        spl.setXMLFile('allTracks.xml')
+        spl.Load_list()
+        self.loaded_list.emit(spl)    
+
+
+class UI_ReplacingWindow(object):
+    def setupUI(self, Window, track_data, file_data):
+        self.track_mp3_name = track_data.to_mp3_name()
+        self.file = file_data
+
+        self.config = configparser.ConfigParser()
+        if os.path.exists('config.ini'):
+            self.config.read("config.ini")
+
+        self.windowlauoyt = QVBoxLayout(Window)
+        Window.setWindowTitle("Rename & Replace")
+        Window.setFixedSize(QtCore.QSize(300, 200))
+
+        self.layout_created = True
+        if self.config['FILTERS']['rename_always'] == '1':
+            self.layout_created = False
+            self.rename_replace(True)
+        elif self.config['FILTERS']['replace_always'] == '1':
+            self.layout_created = False   
+            self.rename_replace(False)
+        else:
+            self.create_layout()
+        if not self.layout_created:
+            self.accept()    
+
+    def create_layout(self):
+        labelBefore = QLabel()
+        labelBefore.setText(self.file.split('/')[-1])
+        labelTO = QLabel()
+        labelTO.setText('TO')
+        labelAfter = QLabel()
+        labelAfter.setText(self.track_mp3_name)
+        labelBefore.setFont(QtGui.QFont('Arial', 12))
+        labelBefore.setAlignment(QtCore.Qt.AlignCenter)
+        labelTO.setFont(QtGui.QFont('Arial', 10))
+        labelTO.setAlignment(QtCore.Qt.AlignCenter)
+        labelAfter.setFont(QtGui.QFont('Arial', 12))
+        labelAfter.setAlignment(QtCore.Qt.AlignCenter)
+
+        btnRename = QPushButton()
+        btnRename.setText('Rename')
+        btnRename.clicked.connect(lambda: self.rename_replace(True))
+        btnReplace = QPushButton()
+        btnReplace.setText('Rename & Replace')
+        btnReplace.clicked.connect(lambda: self.rename_replace(False))
+
+        self.checkout = QCheckBox()
+        self.checkout.setText('Don\'t ask again')
+
+        btnBox = QDialogButtonBox()
+        btnBox.setStandardButtons(
+            QDialogButtonBox.Cancel
+        )
+        btnBox.rejected.connect(self.reject)
+
+        self.windowlauoyt.addWidget(labelBefore)
+        self.windowlauoyt.addWidget(labelTO)
+        self.windowlauoyt.addWidget(labelAfter)
+        self.windowlauoyt.addWidget(btnRename)
+        self.windowlauoyt.addWidget(btnReplace)
+        self.windowlauoyt.addWidget(self.checkout)
+        self.windowlauoyt.addWidget(btnBox)
+
+    def rename_replace(self, only_rename=True):
+        if only_rename:
+            new_path = self.file[1:self.file.rfind('/') + 1] + self.track_mp3_name
+            os.rename(self.file[1:], new_path)
+        else:
+            folder = str(QFileDialog.getExistingDirectory(None, "Select Directory"))
+            os.replace(self.file[1:], folder + '/' + self.track_mp3_name)
+        if self.layout_created:
+            if self.checkout.checkState() == QtCore.Qt.Checked:
+                self.config['FILTERS']['rename_always'] = '1' if only_rename else '0'
+                self.config['FILTERS']['replace_always'] = '0' if only_rename else '1'
+                with open('config.ini', 'w') as configfile:
+                    self.config.write(configfile)
+        self.accept()              
+
+    def reject(self):
+        self.reject()
+
+
+class ReplacingWindow(QDialog, UI_ReplacingWindow):
+    def __init__(self, track_data, file_data, parent=None):
+        super(ReplacingWindow, self).__init__(parent, QtCore.Qt.WindowStaysOnTopHint)
+        self.setupUI(self, track_data, file_data)
+
+
+class UI_EnterSpotifyDataQDialog(object):
+    def clearLayout(self, layout):
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()      
+    
+    def loadKeysLayout(self):
+        formwidget = QWidget()
+        formLayout = QFormLayout(formwidget)
+        formLayout.setContentsMargins(0,0,0,0)
+        self.client_id_LineEdit = QLineEdit()
+        self.client_secret_LineEdit = QLineEdit()
+        self.redirect_uri_LineEdit = QLineEdit()
+        self.redirect_uri_LineEdit.setText('http://localhost:8080')
+        hint = QLabel()
+        hint.setText("Set http://localhost:8080 in your spotify app or change for your custom")
+        hint.setWordWrap(True)
+        formLayout.addRow("Client ID", self.client_id_LineEdit)
+        formLayout.addRow("Client Secret", self.client_secret_LineEdit)
+        formLayout.addRow("Redirect URI", self.redirect_uri_LineEdit)
+        formLayout.addRow("", hint)
+
+        btnBox = QDialogButtonBox()
+        btnBox.setStandardButtons(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btnBox.accepted.connect(self.set_keys)
+        btnBox.rejected.connect(self.reject)
+        self.windowlauoyt.addWidget(formwidget)
+        self.windowlauoyt.addWidget(btnBox)
+
+    def setupUI(self, Window):
+        webbrowser.open("https://developer.spotify.com/dashboard/applications")
+        self.windowlauoyt = QVBoxLayout(Window)
+        Window.setWindowTitle("Enter your spotify data")
+        Window.setFixedSize(QtCore.QSize(400, 160))
+        self.loadKeysLayout()
+        
+    def set_keys(self):
+        client_id = self.client_id_LineEdit.text()
+        client_secret = self.client_secret_LineEdit.text()
+        redirect_uri = self.redirect_uri_LineEdit.text()
+
+        if client_id == '' or client_secret == '' or redirect_uri == '':
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Warning)
+            msgBox.setText("Data Incorrect")
+            msgBox.setWindowTitle("Error")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.exec()
+        else:
+            self.client_id = client_id
+            self.client_secret = client_secret
+            self.redirect_uri = redirect_uri
+            self.set_token()
+
+    def set_token(self):
+        self.accept()
+
+    def reject(self):
+        self.reject()
+
+    def getValues(self):
+        return {
+            'client_id': self.client_id, 
+            'client_secret': self.client_secret,
+            'redirect_uri': self.redirect_uri,
+        }
+
+
+class EnterSpotifyDataQDialog(QDialog, UI_EnterSpotifyDataQDialog):
+    def __init__(self, parent=None):
+        super(EnterSpotifyDataQDialog, self).__init__(parent)
+        self.setupUI(self)
+
+
 class Ui_Form(object):
     def setupUI(self, MainWindow):
         self.MainWindow = MainWindow
@@ -211,12 +399,17 @@ class Ui_Form(object):
         else:
             self.createConfig()
 
-        if self.config['KEYS']['client_id'] == '' or self.config['KEYS']['client_secret'] == '':
+        if not os.path.exists('.cache'):
             self.setupSpotifyError()
         else:
             self.setupList()
 
     def changeCheckStatus(self, state):
+        self.config['FILTERS'] = {
+            'only_downloaded': '1' if state == QtCore.Qt.Checked else '0'
+        }
+        with open('config.ini', 'w') as configfile:
+            self.config.write(configfile)
         for widget in self.scrollArea.widget().children():
             if type(widget) != TrackWidget:
                 continue
@@ -230,10 +423,12 @@ class Ui_Form(object):
         self.config['KEYS'] = {
             'client_id': '',
             'client_secret': '',
-            'redirect_uri': 'https://mysite.com'
+            'redirect_uri': 'https://mysite.com',
         } 
-        self.config['PATHS'] = {
-            'path_of_downloads': ''
+        self.config['FILTERS'] = {
+            'only_downloaded': '0',
+            'rename_always': '0',
+            'replace_always': '0',
         }
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
@@ -280,24 +475,17 @@ class Ui_Form(object):
         self.filterDownloaded = QCheckBox(self.centralWidget) 
         self.filterDownloaded.setText('Only not downloaded')
         self.filterDownloaded.setToolTip('Show only not downloaded') 
-        self.filterDownloaded.stateChanged.connect(self.changeCheckStatus) 
+        self.filterDownloaded.stateChanged.connect(self.changeCheckStatus)
+        self.filterDownloaded.setChecked(True if self.config['FILTERS']['only_downloaded'] == '1' else False) 
         self.filtersLayout.addWidget(self.filterDownloaded)
         self.verticalLayout.addWidget(self.scrollArea)
         self.verticalLayout.addLayout(self.filtersLayout)
         self.movie.stop()
         self.setMyCentralWidget()
 
-    def setMyCentralWidget(self):
-        self.verticalLayout.setContentsMargins(0,0,0,0)
-        self.centralWidgetLayout.addLayout(self.verticalLayout)
-        self.centralWidgetLayout.setContentsMargins(0,0,0,0)
-        self.MainWindow.setCentralWidget(self.centralWidget)
-        self.MainWindow.setContentsMargins(0, 0, 0, 0)
-
-
     def setupSpotifyError(self):
         labelWarning = QLabel(self.centralWidget)
-        labelWarning.setText('You need to connect with app by addition your spotify client app data into config.ini file')
+        labelWarning.setText('You need to connect with app by addition your spotify client app data')
         labelWarning.setAlignment(QtCore.Qt.AlignCenter)
 
         labelInfo = QLabel(self.centralWidget)
@@ -313,12 +501,14 @@ class Ui_Form(object):
         self.verticalLayout.addWidget(labelInfo)
         self.verticalLayout.addWidget(buttonLink)
         self.verticalLayout.addStretch()
-        self.verticalLayout.setContentsMargins(0,0,0,0)
+        self.setMyCentralWidget()
 
+    def setMyCentralWidget(self):
+        self.verticalLayout.setContentsMargins(0,0,0,0)
         self.centralWidgetLayout.addLayout(self.verticalLayout)
         self.centralWidgetLayout.setContentsMargins(0,0,0,0)
         self.MainWindow.setCentralWidget(self.centralWidget)
-        self.MainWindow.setContentsMargins(0,0,0,0)
+        self.MainWindow.setContentsMargins(0, 0, 0, 0)
 
     def creationSpotifyApp_Click(self):
         enterSpotifyDataQDialog = EnterSpotifyDataQDialog()
@@ -328,7 +518,7 @@ class Ui_Form(object):
             self.config['KEYS']['client_secret'] = values['client_secret']
             self.config['KEYS']['redirect_uri'] = values['redirect_uri']
             with open('config.ini', 'w') as configfile:
-                self.config.write(configfile)
+                self.config.write(configfile)      
             self.clearLayout(self.verticalLayout)
             self.setupList()
 
@@ -338,96 +528,12 @@ class Ui_Form(object):
             if child.widget():
                 child.widget().deleteLater()        
 
-class LoadSpotifyTracks_QObject(QtCore.QObject):
-    loaded_list = QtCore.pyqtSignal(SpotifyListener)
-    
-    def __init__(self, config):
-        QtCore.QObject.__init__(self)
-        self.config = config
-
-    def createEmptyXml(self):
-        with open('allTracks.xml', 'w') as xmlfile:
-            xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
-
-    def run(self):
-        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
-        if not os.path.exists('allTracks.xml'):
-            self.createEmptyXml()
-        spl.setXMLFile('allTracks.xml')
-        spl.Load_list()
-        self.loaded_list.emit(spl)    
-
-
-class UI_EnterSpotifyDataQDialog(object):
-    def setupUI(self, Window):
-        webbrowser.open("https://developer.spotify.com/dashboard/applications")
-        Window.setWindowTitle("Enter your spotify data")
-        Window.setFixedSize(QtCore.QSize(400, 160))
-        self.client_id = ''
-        self.client_secret = ''
-        dlgLayout = QVBoxLayout()
-        formLayout = QFormLayout()
-        self.client_id_LineEdit = QLineEdit()
-        self.client_secret_LineEdit = QLineEdit()
-        self.redirect_uri_LineEdit = QLineEdit()
-        self.redirect_uri_LineEdit.setText('http://mysite.com')
-        hint = QLabel()
-        hint.setText("Set http://mysite.com in your spotify app or change for your custom")
-        hint.setWordWrap(True)
-        formLayout.addRow("Client ID", self.client_id_LineEdit)
-        formLayout.addRow("Client Secret", self.client_secret_LineEdit)
-        formLayout.addRow("Redirect URI", self.redirect_uri_LineEdit)
-        formLayout.addRow("", hint)
-
-        btnBox = QDialogButtonBox()
-        btnBox.setStandardButtons(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
-        btnBox.accepted.connect(self.accept)
-        btnBox.rejected.connect(self.reject)
-
-        dlgLayout.addLayout(formLayout)
-        dlgLayout.addWidget(btnBox)
-        Window.setLayout(dlgLayout)
-
-    def accept(self):
-        client_id = self.client_id_LineEdit.text()
-        client_secret = self.client_secret_LineEdit.text()
-        redirect_uri = self.redirect_uri_LineEdit.text()
-
-        if client_id == '' or client_secret == '' or redirect_uri == '':
-            msgBox = QMessageBox()
-            msgBox.setIcon(QMessageBox.Warning)
-            msgBox.setText("Data Incorrect")
-            msgBox.setWindowTitle("Error")
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            msgBox.exec()
-        else:
-            self.client_id = client_id
-            self.client_secret = client_secret
-            self.redirect_uri = redirect_uri
-            self.accept()
-
-    def reject(self):
-        self.reject()
-
-    def getValues(self):
-        return {
-            'client_id': self.client_id, 
-            'client_secret': self.client_secret,
-            'redirect_uri': self.redirect_uri,
-        }
-
-
-class EnterSpotifyDataQDialog(QDialog, UI_EnterSpotifyDataQDialog):
-    def __init__(self, parent=None):
-        super(EnterSpotifyDataQDialog, self).__init__(parent)
-        self.setupUI(self)
 
 class Main(QMainWindow, Ui_Form):
     def __init__(self, parent=None):
         super(Main, self).__init__(parent) 
         self.setupUI(self)        
+
 
 if __name__ == '__main__':
     styleWidget = '''
