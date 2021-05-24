@@ -146,9 +146,23 @@ class TrackWidget(QWidget):
             msgBox.setStandardButtons(QMessageBox.Ok)
             msgBox.exec()
         else:
-            rename_replace_window = ReplacingWindow(self.track, path)
-            if rename_replace_window.exec_():
+            config = configparser.ConfigParser()
+            config.read('config.ini')
+            if config['FILTERS']['rename_always'] == '1':
+                rename(path, self.track)
                 self.checkout.setChecked(True)
+            elif config['FILTERS']['replace_always'] == '1':
+                replace(path, self.track)
+                self.checkout.setChecked(True)
+            else:        
+                rename_replace_window = ReplacingWindow(self.track, path)
+                if rename_replace_window.exec_():
+                    self.checkout.setChecked(True)
+            mainwindow = self.parent()
+            while type(mainwindow) != Main:
+                mainwindow = mainwindow.parent()
+            mainwindow.config.read('config.ini')
+            mainwindow.setNameOfRenameReplace_button()           
 
     def eventFilter(self, obj, event):
         if obj == self and event.type() == QtCore.QEvent.MouseButtonDblClick:
@@ -213,9 +227,18 @@ class LoadSpotifyTracks_QObject(QtCore.QObject):
         self.loaded_list.emit(spl)    
 
 
+def rename(filename, track):
+    new_path = filename[1:filename.rfind('/') + 1] + track.to_mp3_name()
+    os.rename(filename[1:], new_path)
+
+def replace(filename, track):
+    folder = str(QFileDialog.getExistingDirectory(None, "Select Directory"))
+    os.replace(filename[1:], folder + '/' + track.to_mp3_name())
+
+
 class UI_ReplacingWindow(object):
     def setupUI(self, Window, track_data, file_data):
-        self.track_mp3_name = track_data.to_mp3_name()
+        self.track = track_data
         self.file = file_data
 
         self.config = configparser.ConfigParser()
@@ -225,18 +248,7 @@ class UI_ReplacingWindow(object):
         self.windowlauoyt = QVBoxLayout(Window)
         Window.setWindowTitle("Rename & Replace")
         Window.setFixedSize(QtCore.QSize(300, 200))
-
-        self.layout_created = True
-        if self.config['FILTERS']['rename_always'] == '1':
-            self.layout_created = False
-            self.rename_replace(True)
-        elif self.config['FILTERS']['replace_always'] == '1':
-            self.layout_created = False   
-            self.rename_replace(False)
-        else:
-            self.create_layout()
-        if not self.layout_created:
-            self.accept()    
+        self.create_layout()   
 
     def create_layout(self):
         labelBefore = QLabel()
@@ -244,7 +256,7 @@ class UI_ReplacingWindow(object):
         labelTO = QLabel()
         labelTO.setText('TO')
         labelAfter = QLabel()
-        labelAfter.setText(self.track_mp3_name)
+        labelAfter.setText(self.track.to_mp3_name())
         labelBefore.setFont(QtGui.QFont('Arial', 12))
         labelBefore.setAlignment(QtCore.Qt.AlignCenter)
         labelTO.setFont(QtGui.QFont('Arial', 10))
@@ -278,17 +290,14 @@ class UI_ReplacingWindow(object):
 
     def rename_replace(self, only_rename=True):
         if only_rename:
-            new_path = self.file[1:self.file.rfind('/') + 1] + self.track_mp3_name
-            os.rename(self.file[1:], new_path)
+            rename(self.file, self.track)
         else:
-            folder = str(QFileDialog.getExistingDirectory(None, "Select Directory"))
-            os.replace(self.file[1:], folder + '/' + self.track_mp3_name)
-        if self.layout_created:
-            if self.checkout.checkState() == QtCore.Qt.Checked:
-                self.config['FILTERS']['rename_always'] = '1' if only_rename else '0'
-                self.config['FILTERS']['replace_always'] = '0' if only_rename else '1'
-                with open('config.ini', 'w') as configfile:
-                    self.config.write(configfile)
+            replace(self.file, self.track)
+        if self.checkout.checkState() == QtCore.Qt.Checked:
+            self.config['FILTERS']['rename_always'] = '1' if only_rename else '0'
+            self.config['FILTERS']['replace_always'] = '0' if only_rename else '1'
+            with open('config.ini', 'w') as configfile:
+                self.config.write(configfile)
         self.accept()              
 
     def reject(self):
@@ -299,6 +308,53 @@ class ReplacingWindow(QDialog, UI_ReplacingWindow):
     def __init__(self, track_data, file_data, parent=None):
         super(ReplacingWindow, self).__init__(parent, QtCore.Qt.WindowStaysOnTopHint)
         self.setupUI(self, track_data, file_data)
+
+
+class UI_ReplacingConfig(object):
+    def setupUI(self, Window):
+        self.config = configparser.ConfigParser()
+        if os.path.exists('config.ini'):
+            self.config.read("config.ini")
+
+        self.windowlauoyt = QVBoxLayout(Window)
+        Window.setWindowTitle("Rename & Replace")
+        Window.resize(QtCore.QSize(300, 200))
+        hint = QLabel()
+        hint.setText('What to do when dragging and dropping a file into the program')
+        hint.setAlignment(QtCore.Qt.AlignCenter)
+        hint.setWordWrap(True)
+        ask_btn = QPushButton()
+        ask_btn.setText('Ask')
+        ask_btn.clicked.connect(lambda: self.change(0))
+        rename_btn = QPushButton()
+        rename_btn.setText('Rename')
+        rename_btn.clicked.connect(lambda: self.change(1))
+        replace_btn = QPushButton()
+        replace_btn.setText('Replace')
+        replace_btn.clicked.connect(lambda: self.change(2))
+        self.windowlauoyt.addWidget(hint)
+        self.windowlauoyt.addWidget(ask_btn)
+        self.windowlauoyt.addWidget(rename_btn)
+        self.windowlauoyt.addWidget(replace_btn)
+
+    def change(self, state):
+        if state == 0:
+            self.config['FILTERS']['rename_always'] = self.config['FILTERS']['replace_always'] = '0'
+        elif state == 1:
+            self.config['FILTERS']['rename_always'] = '1'
+            self.config['FILTERS']['replace_always'] = '0'
+        elif state == 2:
+            self.config['FILTERS']['rename_always'] = '0'
+            self.config['FILTERS']['replace_always'] = '1'
+        with open('config.ini', 'w') as configfile:
+            self.config.write(configfile)    
+        self.accept()                
+
+
+class ReplacingConfig(QDialog, UI_ReplacingConfig):
+    def __init__(self, parent=None):
+        super(ReplacingConfig, self).__init__(parent)
+        self.setupUI(self)
 
 
 class UI_EnterSpotifyDataQDialog(object):
@@ -476,12 +532,31 @@ class Ui_Form(object):
         self.filterDownloaded.setText('Only not downloaded')
         self.filterDownloaded.setToolTip('Show only not downloaded') 
         self.filterDownloaded.stateChanged.connect(self.changeCheckStatus)
-        self.filterDownloaded.setChecked(True if self.config['FILTERS']['only_downloaded'] == '1' else False) 
+        self.filterDownloaded.setChecked(True if self.config['FILTERS']['only_downloaded'] == '1' else False)
+        self.buttonRenameReplace = QPushButton(self.centralWidget) 
+        self.setNameOfRenameReplace_button()
+        self.buttonRenameReplace.clicked.connect(self.Rename_Replace_config)
         self.filtersLayout.addWidget(self.filterDownloaded)
+        self.filtersLayout.addStretch(0)
+        self.filtersLayout.addWidget(self.buttonRenameReplace)
         self.verticalLayout.addWidget(self.scrollArea)
         self.verticalLayout.addLayout(self.filtersLayout)
         self.movie.stop()
         self.setMyCentralWidget()
+
+    def setNameOfRenameReplace_button(self):
+        if self.config['FILTERS']['rename_always'] == '1':
+            self.buttonRenameReplace.setText('Rename')
+        elif self.config['FILTERS']['replace_always'] == '1':
+            self.buttonRenameReplace.setText('Replace')
+        else:        
+            self.buttonRenameReplace.setText('Ask')
+
+    def Rename_Replace_config(self):
+        window = ReplacingConfig()
+        if window.exec_():
+            self.config.read('config.ini')
+            self.setNameOfRenameReplace_button()
 
     def setupSpotifyError(self):
         labelWarning = QLabel(self.centralWidget)

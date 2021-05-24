@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
-<tracks count="532">
-    <track id="6gClLrn292IEuNA8fbSM21" downloaded="True" when="24 May 2021">
+<tracks count="536">
+    <track id="6gClLrn292IEuNA8fbSM21" downloaded="False" when="24 May 2021">
         <name>its_OK</name>
         <artist>Karma Fields</artist>
         <time>02:51</time>
@@ -4021,5 +4021,38 @@
         <artist>Nanoo</artist>
         <time>04:01</time>
         <playlists count="0" />
+    </track>
+    <track id="5lqGAnVqlk8lJ5K3jCLpUX" downloaded="False" when="25 May 2021">
+        <name>Ether</name>
+        <artist>Fox Stevenson</artist>
+        <time>03:18</time>
+        <playlists count="2">
+            <playlist>Быстро</playlist>
+            <playlist>Шумно</playlist>
+        </playlists>
+    </track>
+    <track id="7tF0g57CG25Ew3GX7wa67l" downloaded="False" when="25 May 2021">
+        <name>Smoke And Mirrors</name>
+        <artist>Gotye</artist>
+        <time>05:13</time>
+        <playlists count="1">
+            <playlist>Для всех</playlist>
+        </playlists>
+    </track>
+    <track id="0rMNCCgt2KCOLlBeWJbGCD" downloaded="False" when="25 May 2021">
+        <name>Hearts A Mess</name>
+        <artist>Gotye</artist>
+        <time>06:05</time>
+        <playlists count="1">
+            <playlist>Для всех</playlist>
+        </playlists>
+    </track>
+    <track id="1qDrWA6lyx8cLECdZE7TV7" downloaded="False" when="25 May 2021">
+        <name>Somebody That I Used To Know</name>
+        <artist>Gotye</artist>
+        <time>04:04</time>
+        <playlists count="1">
+            <playlist>Для всех</playlist>
+        </playlists>
     </track>
 </tracks>
