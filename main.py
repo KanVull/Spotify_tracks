@@ -246,7 +246,7 @@ class UI_ReplacingWindow(object):
             self.config.read("config.ini")
 
         self.windowlauoyt = QVBoxLayout(Window)
-        Window.setWindowTitle("Rename & Replace")
+        Window.setWindowTitle("Rename and Replace")
         Window.setFixedSize(QtCore.QSize(300, 200))
         self.create_layout()   
 
@@ -259,16 +259,18 @@ class UI_ReplacingWindow(object):
         labelAfter.setText(self.track.to_mp3_name())
         labelBefore.setFont(QtGui.QFont('Arial', 12))
         labelBefore.setAlignment(QtCore.Qt.AlignCenter)
-        labelTO.setFont(QtGui.QFont('Arial', 10))
+        labelBefore.setWordWrap(True)
+        labelTO.setFont(QtGui.QFont('Arial', 8))
         labelTO.setAlignment(QtCore.Qt.AlignCenter)
         labelAfter.setFont(QtGui.QFont('Arial', 12))
         labelAfter.setAlignment(QtCore.Qt.AlignCenter)
+        labelAfter.setWordWrap(True)
 
         btnRename = QPushButton()
         btnRename.setText('Rename')
         btnRename.clicked.connect(lambda: self.rename_replace(True))
         btnReplace = QPushButton()
-        btnReplace.setText('Rename & Replace')
+        btnReplace.setText('Rename and Replace')
         btnReplace.clicked.connect(lambda: self.rename_replace(False))
 
         self.checkout = QCheckBox()
@@ -317,7 +319,7 @@ class UI_ReplacingConfig(object):
             self.config.read("config.ini")
 
         self.windowlauoyt = QVBoxLayout(Window)
-        Window.setWindowTitle("Rename & Replace")
+        Window.setWindowTitle("Rename and Replace")
         Window.resize(QtCore.QSize(300, 200))
         hint = QLabel()
         hint.setText('What to do when dragging and dropping a file into the program')
@@ -479,7 +481,7 @@ class Ui_Form(object):
         self.config['KEYS'] = {
             'client_id': '',
             'client_secret': '',
-            'redirect_uri': 'https://mysite.com',
+            'redirect_uri': 'http://localhost:8080',
         } 
         self.config['FILTERS'] = {
             'only_downloaded': '0',
@@ -533,7 +535,8 @@ class Ui_Form(object):
         self.filterDownloaded.setToolTip('Show only not downloaded') 
         self.filterDownloaded.stateChanged.connect(self.changeCheckStatus)
         self.filterDownloaded.setChecked(True if self.config['FILTERS']['only_downloaded'] == '1' else False)
-        self.buttonRenameReplace = QPushButton(self.centralWidget) 
+        self.buttonRenameReplace = QPushButton(self.centralWidget)
+        self.buttonRenameReplace.setToolTip('Drag and Drop configuration') 
         self.setNameOfRenameReplace_button()
         self.buttonRenameReplace.clicked.connect(self.Rename_Replace_config)
         self.filtersLayout.addWidget(self.filterDownloaded)
@@ -639,7 +642,8 @@ if __name__ == '__main__':
         '''
     app = QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
-    ex  = Main()
+    app.setWindowIcon(QtGui.QIcon('./pictures/spotiApp.ico'))
+    ex = Main()
     ex.show()
     sys.exit(app.exec_()) 
 
