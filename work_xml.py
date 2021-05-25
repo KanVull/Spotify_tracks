@@ -115,5 +115,3 @@ class SpotifyListener():
         track_in_xml = self.root.findall(f'./track[@id="{track_id}"]')
         track_in_xml[0].set('downloaded', str(status))
         self.tree.write(self.path, encoding='utf-8', xml_declaration=True)
-
-# sp = SpotifyListener()        
