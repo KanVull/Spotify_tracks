@@ -24,6 +24,11 @@ import webbrowser
 import configparser
 from work_xml import SpotifyListener
 
+if not os.path.exists('C:/ProgramData/Your Spoti'):
+    os.mkdir('C:/ProgramData/Your Spoti')
+CONFIG_PATH = 'C:/ProgramData/Your Spoti/config.ini'
+ALLTRACKS_PATH = 'C:/ProgramData/Your Spoti/allTracks.xml'
+CACHE_PATH = 'C:/ProgramData/Your Spoti/.cache'
 
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
@@ -147,7 +152,7 @@ class TrackWidget(QWidget):
             msgBox.exec()
         else:
             config = configparser.ConfigParser()
-            config.read(os.path.dirname(sys.executable) + '/config.ini')
+            config.read(CONFIG_PATH)
             if config['FILTERS']['rename_always'] == '1':
                 rename(path, self.track)
                 self.checkout.setChecked(True)
@@ -161,7 +166,7 @@ class TrackWidget(QWidget):
             mainwindow = self.parent()
             while type(mainwindow) != Main:
                 mainwindow = mainwindow.parent()
-            mainwindow.config.read(os.path.dirname(sys.executable) + '/config.ini')
+            mainwindow.config.read(CONFIG_PATH)
             mainwindow.setNameOfRenameReplace_button()           
 
     def eventFilter(self, obj, event):
@@ -214,15 +219,15 @@ class LoadSpotifyTracks_QObject(QtCore.QObject):
         self.config = config
 
     def createEmptyXml(self):
-        with open(os.path.dirname(sys.executable) + '/allTracks.xml', 'w') as xmlfile:
+        with open(ALLTRACKS_PATH, 'w') as xmlfile:
             xmlfile.write("<?xml version='1.0' encoding='utf-8'?><tracks count='0'></tracks>")
 
     def run(self):
-        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'])
-        if not os.path.exists(os.path.dirname(sys.executable) + '/allTracks.xml'):
+        spl = SpotifyListener(self.config['KEYS']['client_id'], self.config['KEYS']['client_secret'], self.config['KEYS']['redirect_uri'], CACHE_PATH)
+        if not os.path.exists(ALLTRACKS_PATH):
             self.createEmptyXml()
         spl.Load_playlists()
-        spl.setXMLFile(os.path.dirname(sys.executable) + '/allTracks.xml')
+        spl.setXMLFile(ALLTRACKS_PATH)
         spl.Load_list()
         self.loaded_list.emit(spl)    
 
@@ -242,7 +247,7 @@ class UI_ReplacingWindow(object):
         self.file = file_data
 
         self.config = configparser.ConfigParser()
-        self.config.read(os.path.dirname(sys.executable) + '/config.ini')
+        self.config.read(CONFIG_PATH)
 
         self.windowlauoyt = QVBoxLayout(Window)
         Window.setWindowTitle("Rename and Replace")
@@ -297,7 +302,7 @@ class UI_ReplacingWindow(object):
         if self.checkout.checkState() == QtCore.Qt.Checked:
             self.config['FILTERS']['rename_always'] = '1' if only_rename else '0'
             self.config['FILTERS']['replace_always'] = '0' if only_rename else '1'
-            with open(os.path.dirname(sys.executable) + '/config.ini', 'w') as configfile:
+            with open(CONFIG_PATH, 'w') as configfile:
                 self.config.write(configfile)
         self.accept()              
 
@@ -314,8 +319,7 @@ class ReplacingWindow(QDialog, UI_ReplacingWindow):
 class UI_ReplacingConfig(object):
     def setupUI(self, Window):
         self.config = configparser.ConfigParser()
-        if os.path.exists(os.path.dirname(sys.executable) + '/config.ini'):
-            self.config.read(os.path.dirname(sys.executable) + '/config.ini')
+        self.config.read(CONFIG_PATH)
 
         self.windowlauoyt = QVBoxLayout(Window)
         Window.setWindowTitle("Rename and Replace")
@@ -347,7 +351,7 @@ class UI_ReplacingConfig(object):
         elif state == 2:
             self.config['FILTERS']['rename_always'] = '0'
             self.config['FILTERS']['replace_always'] = '1'
-        with open(os.path.dirname(sys.executable) + '/config.ini', 'w') as configfile:
+        with open(CONFIG_PATH, 'w') as configfile:
             self.config.write(configfile)    
         self.accept()                
 
@@ -374,7 +378,7 @@ class UI_EnterSpotifyDataQDialog(object):
         self.redirect_uri_LineEdit = QLineEdit()
         self.redirect_uri_LineEdit.setText('http://localhost:8080')
         hint = QLabel()
-        hint.setText('Set http://localhost:8080 in your spotify app or change for your custom')
+        hint.setText('Add http://localhost:8080 in your spotify app in Redirect URL or change for your custom')
         hint.setWordWrap(True)
         formLayout.addRow('Client ID', self.client_id_LineEdit)
         formLayout.addRow('Client Secret', self.client_secret_LineEdit)
@@ -437,12 +441,18 @@ class EnterSpotifyDataQDialog(QDialog, UI_EnterSpotifyDataQDialog):
 
 class Ui_Form(object):
     def setupUI(self, MainWindow):
+
+        self.config = configparser.ConfigParser()
+        if os.path.exists(CONFIG_PATH):
+            self.config.read(CONFIG_PATH)
+        else:
+            self.createConfig()
+
         self.MainWindow = MainWindow
-        self.MainWindow.setWindowTitle('Your Spoty')
+        self.setNameOfWindow()
         self.MainWindow.setObjectName('form')
         self.MainWindow.resize(800, 800)
         self.MainWindow.setAttribute(QtCore.Qt.WA_StyledBackground, True)
-
         self.centralWidget = QWidget(self.MainWindow)
         self.centralWidget.setObjectName('centralwidget')
         self.verticalLayout = QVBoxLayout()
@@ -450,20 +460,20 @@ class Ui_Form(object):
         self.centralWidgetLayout = QVBoxLayout(self.centralWidget)
         self.centralWidgetLayout.setContentsMargins(0,0,0,0)
 
-        self.config = configparser.ConfigParser()
-        if os.path.exists(os.path.dirname(sys.executable) + '/config.ini'):
-            self.config.read(os.path.dirname(sys.executable) + '/config.ini')
-        else:
-            self.createConfig()
-
-        if not os.path.exists(os.path.dirname(sys.executable) + '/.cache'):
+        if not os.path.exists(CACHE_PATH):
             self.setupSpotifyError()
         else:
             self.setupList()
 
+    def setNameOfWindow(self):
+        if self.config['USER']['user_name'] == '':
+            self.MainWindow.setWindowTitle('Your Spoti')
+        else:
+            self.MainWindow.setWindowTitle('Your Spoti | ' + self.config['USER']['user_name'])    
+
     def changeCheckStatus(self, state):
         self.config['FILTERS']['only_downloaded'] = '1' if state == QtCore.Qt.Checked else '0'
-        with open(os.path.dirname(sys.executable) + '/config.ini', 'w') as configfile:
+        with open(CONFIG_PATH, 'w') as configfile:
             self.config.write(configfile)
         for widget in self.scrollArea.widget().children():
             if type(widget) != TrackWidget:
@@ -479,16 +489,20 @@ class Ui_Form(object):
             'client_id': '',
             'client_secret': '',
             'redirect_uri': 'http://localhost:8080',
+        }
+        self.config['USER'] = {
+            'user_name': '',
         } 
         self.config['FILTERS'] = {
             'only_downloaded': '0',
             'rename_always': '0',
             'replace_always': '0',
         }
-        with open(os.path.dirname(sys.executable) + '/config.ini', 'w') as configfile:
+        with open(CONFIG_PATH, 'w') as configfile:
             self.config.write(configfile)
 
     def setupList(self):
+        self.setNameOfWindow()
         self.thread = QtCore.QThread()
         self.loadSpotifyTracks_QObject = LoadSpotifyTracks_QObject(self.config)
         self.loadSpotifyTracks_QObject.moveToThread(self.thread)
@@ -509,7 +523,7 @@ class Ui_Form(object):
         gifLabel.setMinimumSize(QtCore.QSize(180, 85))
         gifLabel.setMaximumSize(QtCore.QSize(180, 85))
         gifLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.movie = QtGui.QMovie(os.path.dirname(sys.executable) + '/loading.gif')
+        self.movie = QtGui.QMovie('loading.gif')
         gifLabel.setMovie(self.movie)
         horizontalLabel.addStretch(0)
         horizontalLabel.addWidget(gifLabel)
@@ -523,6 +537,10 @@ class Ui_Form(object):
         self.setMyCentralWidget()
 
     def setScrollArea(self, spl):
+        self.config['USER']['user_name'] = spl.user_name
+        with open(CONFIG_PATH, 'w') as configfile:
+            self.config.write(configfile)
+        self.setNameOfWindow()    
         self.clearLayout(self.verticalLayout)
         self.scrollArea = scrollAreaTracks(spl, self.centralWidget) 
         self.filtersLayout = QHBoxLayout()
@@ -555,7 +573,7 @@ class Ui_Form(object):
     def Rename_Replace_config(self):
         window = ReplacingConfig()
         if window.exec_():
-            self.config.read(os.path.dirname(sys.executable) + '/config.ini')
+            self.config.read(CONFIG_PATH)
             self.setNameOfRenameReplace_button()
 
     def setupSpotifyError(self):
@@ -592,7 +610,7 @@ class Ui_Form(object):
             self.config['KEYS']['client_id'] = values['client_id']
             self.config['KEYS']['client_secret'] = values['client_secret']
             self.config['KEYS']['redirect_uri'] = values['redirect_uri']
-            with open(os.path.dirname(sys.executable) + '/config.ini', 'w') as configfile:
+            with open(CONFIG_PATH, 'w') as configfile:
                 self.config.write(configfile)      
             self.clearLayout(self.verticalLayout)
             self.setupList()
@@ -639,7 +657,7 @@ if __name__ == '__main__':
         '''
     app = QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
-    app.setWindowIcon(QtGui.QIcon(os.path.dirname(sys.executable) + '/spotiApp.ico'))
+    app.setWindowIcon(QtGui.QIcon('spotiApp.ico'))
     ex = Main()
     ex.show()
     sys.exit(app.exec_()) 

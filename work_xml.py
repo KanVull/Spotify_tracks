@@ -4,13 +4,16 @@ from spotipy import Spotify, oauth2
 from track import Track
 
 class SpotifyListener():
-    def __init__(self, client_id, client_secret, redirect_uri):
+    def __init__(self, client_id, client_secret, redirect_uri, cache_path):
         SpOA = oauth2.SpotifyOAuth(client_id=client_id,
                             client_secret=client_secret,
                             redirect_uri=redirect_uri,
                             scope="user-library-read",
+                            cache_path=cache_path,
                             )
         self.sp = Spotify(auth_manager=SpOA)
+        self.user_name = self.sp.me()
+        self.user_name = self.user_name['display_name']
 
     def setXMLFile(self, path):
         self.path = path
