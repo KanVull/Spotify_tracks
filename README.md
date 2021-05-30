@@ -13,9 +13,7 @@ You must connect your spotify with this app
 
 # Last Version: 0.04
 
-## History
-
-## * 0.04
+### Version 0.04
 
 * Added playlists filter
 * Added counter for shown tracks
