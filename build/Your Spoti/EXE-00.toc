@@ -2,7 +2,7 @@
  False,
  False,
  True,
- 'spotiApp.ico',
+ 'F:\\Python\\Spotify_tracks\\pictures\\spotiApp.ico',
  None,
  False,
  False,
@@ -46,7 +46,7 @@
  [],
  False,
  False,
- 1622022675,
+ 1622389440,
  [('runw.exe',
    'f:\\python\\spotify_tracks\\env\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit\\runw.exe',
    'EXECUTABLE')])

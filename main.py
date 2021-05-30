@@ -31,6 +31,13 @@ CONFIG_PATH = os.path.join(path_to_prData, 'config.ini')
 ALLTRACKS_PATH = os.path.join(path_to_prData, 'allTracks.xml')
 CACHE_PATH = os.path.join(path_to_prData, '.cache')
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
         QWidget.__init__(self, parent=parent)
@@ -85,7 +92,7 @@ class TrackWidget(QWidget):
         self.layuotDropPicture.setObjectName('layoutdroppicture')
         self.labeldroppicture = QLabel()
         self.labeldroppicture.setStyleSheet('background-color: #ffffff;')
-        pixmap = QtGui.QPixmap('pictures/dropArrowBlack.png')
+        pixmap = QtGui.QPixmap(resource_path('pictures/dropArrowBlack.png'))
         self.labeldroppicture.setPixmap(pixmap)
         self.labeldroppicture.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
         # self.labeldroppicture.setFixedSize(QtCore.QSize(40,20))
@@ -169,33 +176,41 @@ class TrackWidget(QWidget):
 
     def getResizedText(self, text, label):
         currentLabelWidth = label.width()
-        if label.fontMetrics().boundingRect(text).width() > currentLabelWidth:
-            while label.fontMetrics().boundingRect(text + '....').width() > currentLabelWidth:
+        if label.fontMetrics().boundingRect(text).width() >= currentLabelWidth:
+            text = text[:-4]
+            while label.fontMetrics().boundingRect(text + '... ').width() >= currentLabelWidth:
                 text = text[:-1]
+                text.strip()
             text += '...'    
         return text         
 
+    def resizeNames(self):
+        self.labelname.setText(self.getResizedText(self.nametext, self.labelname))
+        self.labelartists.setText(self.getResizedText(self.artiststext, self.labelartists))
+        self.labelplaylists.setText(self.getResizedText(self.playliststext, self.labelplaylists))
 
     def eventFilter(self, obj, event):
         if obj == self and event.type() == QtCore.QEvent.MouseButtonDblClick:
             pyperclip.copy(self.track.get_name())
 
         elif obj == self and event.type() == QtCore.QEvent.Resize:
-            self.labelname.setText(self.getResizedText(self.nametext, self.labelname))
-            self.labelartists.setText(self.getResizedText(self.artiststext, self.labelartists))
-            self.labelplaylists.setText(self.getResizedText(self.playliststext, self.labelplaylists))
+            self.resizeNames()
 
         elif obj == self and event.type() == QtCore.QEvent.DragEnter:
             self.labeldroppicture.show()
+            self.resizeNames()
             if event.mimeData().hasUrls():
                 event.acceptProposedAction()
                 return True
 
         elif obj == self and event.type() == QtCore.QEvent.DragLeave:
             self.labeldroppicture.hide()
+            self.resizeNames()
+            return True
 
         elif obj == self and event.type() == QtCore.QEvent.Drop:
             self.labeldroppicture.hide()
+            self.resizeNames()
             if event.mimeData().hasUrls():
                 for url in event.mimeData().urls():
                     self.changeFileProperties(url.path())
@@ -210,6 +225,7 @@ class TrackWidget(QWidget):
             while type(main) != Main:
                 main = main.parent()
             if main.filtersconfig['Only not downloaded']:
+                main.labelcounttracks.setText(f': {int(main.labelcounttracks.text().split(" ")[-1]) - 1}')
                 self.hide()
         else:
             self.track.downloaded = False
@@ -277,10 +293,11 @@ class UI_ReplacingWindow(object):
 
         self.windowlauoyt = QVBoxLayout(Window)
         Window.setWindowTitle("Rename and Replace")
-        Window.setFixedSize(QtCore.QSize(300, 200))
+        Window.resize(QtCore.QSize(300, 300))
         self.create_layout()   
 
     def create_layout(self):
+        layoutnames = QVBoxLayout()
         labelBefore = QLabel()
         labelBefore.setText(self.file.split('/')[-1])
         labelTO = QLabel()
@@ -295,6 +312,11 @@ class UI_ReplacingWindow(object):
         labelAfter.setFont(QtGui.QFont('Arial', 12))
         labelAfter.setAlignment(QtCore.Qt.AlignCenter)
         labelAfter.setWordWrap(True)
+        layoutnames.addStretch(0)
+        layoutnames.addWidget(labelBefore)
+        layoutnames.addWidget(labelTO)
+        layoutnames.addWidget(labelAfter)
+        layoutnames.addStretch(0)
 
         btnRename = QPushButton()
         btnRename.setText('Rename')
@@ -312,9 +334,7 @@ class UI_ReplacingWindow(object):
         )
         btnBox.rejected.connect(self.reject)
 
-        self.windowlauoyt.addWidget(labelBefore)
-        self.windowlauoyt.addWidget(labelTO)
-        self.windowlauoyt.addWidget(labelAfter)
+        self.windowlauoyt.addLayout(layoutnames)
         self.windowlauoyt.addWidget(btnRename)
         self.windowlauoyt.addWidget(btnReplace)
         self.windowlauoyt.addWidget(self.checkout)
@@ -331,9 +351,6 @@ class UI_ReplacingWindow(object):
             with open(CONFIG_PATH, 'w') as configfile:
                 self.config.write(configfile)
         self.accept()              
-
-    def reject(self):
-        self.reject()
 
 
 class ReplacingWindow(QDialog, UI_ReplacingWindow):
@@ -600,7 +617,7 @@ class Ui_Form(object):
         gifLabel.setMinimumSize(QtCore.QSize(180, 85))
         gifLabel.setMaximumSize(QtCore.QSize(180, 85))
         gifLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.movie = QtGui.QMovie('pictures/loading.gif')
+        self.movie = QtGui.QMovie(resource_path('pictures/loading.gif'))
         gifLabel.setMovie(self.movie)
         horizontalLabel.addStretch(0)
         horizontalLabel.addWidget(gifLabel)
@@ -779,7 +796,7 @@ if __name__ == '__main__':
         '''
     app = QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
-    app.setWindowIcon(QtGui.QIcon('pictures/spotiApp.ico'))
+    app.setWindowIcon(QtGui.QIcon(resource_path('pictures/spotiApp.ico')))
     ex = Main()
     ex.show()
     sys.exit(app.exec_()) 

@@ -8,5 +8,15 @@ You must connect your spotify with this app
 
 * create spotify app by following instructions
 * set random name and random description
-* BEFORE copy&paste your keys - set http://localhost:8080 to Redirect URL in settings of your spotify app
+* BEFORE copy&paste your keys - copy redirect url from program window to Redirect URL in settings of your spotify app
 * save your spotify app
+
+# Last Version: 0.04
+
+## History
+
+## * 0.04
+
+* Added playlists filter
+* Added counter for shown tracks
+* Resize now works better
