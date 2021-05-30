@@ -34,20 +34,22 @@ CACHE_PATH = os.path.join(path_to_prData, '.cache')
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
         QWidget.__init__(self, parent=parent)
-
         self.track = track
         prepairedName = self.track.name.lower().replace('&', '%26')
-        prepairedArtist = self.track.artist.lower().replace('&', '%26')
+        prepairedArtist = self.track.artists[0].lower().replace('&', '%26')
         self.links = {
             'KissVK': f"https://kissvk.com/?search={prepairedArtist.replace(' ', '%20')}%20-%20{prepairedName.replace(' ', '%20')}",
             'YouTube': f"https://www.youtube.com/results?search_query={prepairedArtist.replace(' ', '+')}+-+{prepairedName.replace(' ', '+')}",
         }
-
         self.setupUI()
 
     def setupUI(self):
         self.setMinimumSize(QtCore.QSize(0,70))
         self.setMaximumSize(QtCore.QSize(16777215, 70))
+
+        self.nametext = self.track.name
+        self.artiststext = ', '.join(self.track.artists)
+        self.playliststext = ', '.join(self.track.playlists)
 
         self.widgetlayout = QHBoxLayout(self)
 
@@ -57,22 +59,22 @@ class TrackWidget(QWidget):
 
         self.labelname = QLabel(self)
         self.labelname.setScaledContents(True)
-        self.labelname.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
-        self.labelname.setWordWrap(True)
+        self.labelname.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.labelname.setMargin(0)
         self.labelname.setIndent(-1)
-        self.labelname.setText(self.track.name)
+        self.labelname.setWordWrap(True)
+        self.labelname.setText(self.nametext)
         self.labelname.setObjectName('labelname')
 
         self.labelartists = QLabel(self)
+        self.labelartists.setText(self.artiststext)
         self.labelartists.setWordWrap(True)
-        self.labelartists.setText(', '.join(self.track.artists))
         self.labelartists.setObjectName('labelartists')
 
         self.labelplaylists = QLabel(self)
-        self.labelplaylists.setText(', '.join(self.track.playlists))
-        self.labelplaylists.setObjectName('labelplaylists')
+        self.labelplaylists.setText(self.playliststext)
         self.labelplaylists.setWordWrap(True)
+        self.labelplaylists.setObjectName('labelplaylists')
 
         self.layoutnames.addWidget(self.labelname)
         self.layoutnames.addWidget(self.labelartists)
@@ -83,7 +85,7 @@ class TrackWidget(QWidget):
         self.layuotDropPicture.setObjectName('layoutdroppicture')
         self.labeldroppicture = QLabel()
         self.labeldroppicture.setStyleSheet('background-color: #ffffff;')
-        pixmap = QtGui.QPixmap('pictures/dropArrow.png')
+        pixmap = QtGui.QPixmap('pictures/dropArrowBlack.png')
         self.labeldroppicture.setPixmap(pixmap)
         self.labeldroppicture.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
         # self.labeldroppicture.setFixedSize(QtCore.QSize(40,20))
@@ -134,34 +136,9 @@ class TrackWidget(QWidget):
             action.setText(key)
             action.triggered.connect(self.download)
             self.addAction(action)
-    
 
     def download(self):
-        sender = self.sender()
-        webbrowser.open(self.links[sender.text()])
-
-    def dragEnterEvent(self, event):
-        self.labeldroppicture.show()
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-        else:
-            super(TrackWidget, self).dragEnterEvent(event)
-
-    def dragMoveEvent(self, event):
-        super(TrackWidget, self).dragMoveEvent(event)
-
-    def dragLeaveEvent(self, event):
-        self.labeldroppicture.hide()
-        super(TrackWidget, self).dragLeaveEvent(event)    
-
-    def dropEvent(self, event):
-        self.labeldroppicture.hide()
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                self.changeFileProperties(url.path())
-            event.acceptProposedAction()
-        else:
-            super(TrackWidget,self).dropEvent(event)      
+        webbrowser.open(self.links[self.sender().text()])
 
     def changeFileProperties(self, path):
         if path[-3:] != 'mp3':
@@ -190,21 +167,49 @@ class TrackWidget(QWidget):
             mainwindow.config.read(CONFIG_PATH)
             mainwindow.setNameOfRenameReplace_button()           
 
+    def getResizedText(self, text, label):
+        currentLabelWidth = label.width()
+        if label.fontMetrics().boundingRect(text).width() > currentLabelWidth:
+            while label.fontMetrics().boundingRect(text + '....').width() > currentLabelWidth:
+                text = text[:-1]
+            text += '...'    
+        return text         
+
+
     def eventFilter(self, obj, event):
         if obj == self and event.type() == QtCore.QEvent.MouseButtonDblClick:
-            self.onClicked()     
+            pyperclip.copy(self.track.get_name())
+
+        elif obj == self and event.type() == QtCore.QEvent.Resize:
+            self.labelname.setText(self.getResizedText(self.nametext, self.labelname))
+            self.labelartists.setText(self.getResizedText(self.artiststext, self.labelartists))
+            self.labelplaylists.setText(self.getResizedText(self.playliststext, self.labelplaylists))
+
+        elif obj == self and event.type() == QtCore.QEvent.DragEnter:
+            self.labeldroppicture.show()
+            if event.mimeData().hasUrls():
+                event.acceptProposedAction()
+                return True
+
+        elif obj == self and event.type() == QtCore.QEvent.DragLeave:
+            self.labeldroppicture.hide()
+
+        elif obj == self and event.type() == QtCore.QEvent.Drop:
+            self.labeldroppicture.hide()
+            if event.mimeData().hasUrls():
+                for url in event.mimeData().urls():
+                    self.changeFileProperties(url.path())
+                event.acceptProposedAction()
+                return True                          
         return super(TrackWidget, self).eventFilter(obj, event)
 
-    def onClicked(self):
-        pyperclip.copy(self.track.get_name())
-        
     def changeCheckStatus(self, state):
         if state == QtCore.Qt.Checked:
             main = self.parent()
             self.track.downloaded = True
             while type(main) != Main:
                 main = main.parent()
-            if main.filterDownloaded.checkState() == QtCore.Qt.Checked:
+            if main.filtersconfig['Only not downloaded']:
                 self.hide()
         else:
             self.track.downloaded = False
@@ -470,13 +475,18 @@ class UI_FilterDialog(object):
         self.playlistScrollAreaContent = QWidget()
         self.playlistScrollAreaContentLayout = QVBoxLayout(self.playlistScrollAreaContent)
 
-        for key, value in current_config.items():
-            if key not in ['not_selected', 'Only not downloaded']:
-                checkbox = QCheckBox()
-                checkbox.setText(key)
-                checkbox.setChecked(value)
-                checkbox.stateChanged.connect(lambda: self.set_filters())
-                self.playlistScrollAreaContentLayout.addWidget(checkbox)
+        if len(current_config.keys()) > 3:
+            for key, value in current_config.items():
+                if key not in ['not_selected', 'Only not downloaded']:
+                    checkbox = QCheckBox()
+                    checkbox.setText(key)
+                    checkbox.setChecked(value)
+                    checkbox.stateChanged.connect(lambda: self.set_filters())
+                    self.playlistScrollAreaContentLayout.addWidget(checkbox)
+        else:
+            self.labelNonePlaylist = QLabel()
+            self.labelNonePlaylist.setText('You haven\'t playlists')
+            self.playlistScrollAreaContentLayout.addWidget(self.labelNonePlaylist)            
         self.playlistScrollArea.setWidget(self.playlistScrollAreaContent)
 
         self.downloadedCheckbox = QCheckBox()
@@ -616,7 +626,7 @@ class Ui_Form(object):
         self.clearLayout(self.verticalLayout)
         self.scrollArea = scrollAreaTracks(spl, self.centralWidget) 
         self.filtersLayout = QHBoxLayout()
-        self.filtersLayout.setContentsMargins(10, 0, 0, 8)
+        self.filtersLayout.setContentsMargins(6, 0, 6, 6)
         self.buttonFilters = QPushButton(self.centralWidget)
         self.buttonFilters.setToolTip('Choose what will be shown') 
         self.buttonFilters.setText('Filters')

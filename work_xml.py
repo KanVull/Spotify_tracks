@@ -46,7 +46,8 @@ class SpotifyListener():
                 if track_in_xml:
                     _id = track_in_xml[0].attrib['id']
                     _name = track_in_xml[0].find('name').text
-                    _artict = track_in_xml[0].find('artist').text
+                    _artists = track_in_xml[0].find('artists').findall('artist')
+                    _artists = [art.text for art in _artists]
                     _time = track_in_xml[0].find('time').text
                     _downloaded = track_in_xml[0].attrib['downloaded']
                     _playlists = track_in_xml[0].find('playlists').findall('playlist')
@@ -62,12 +63,16 @@ class SpotifyListener():
                         parent.set('count', str(len(current_playlists)))
                     _playlists = current_playlists                
                     _date = track_in_xml[0].attrib['when']
-                    self.list_of_tracks.append(Track(_id, _name, _artict, _time, _downloaded, _playlists, _date))
+                    self.list_of_tracks.append(Track(_id, _name, _artists, _time, _downloaded, _playlists, _date))
                     continue
                 
                 trackET = ET.SubElement(self.root, 'track')
                 trackETName = ET.SubElement(trackET, 'name')
-                trackETArtist = ET.SubElement(trackET, 'artist')
+                trackETArtist = ET.SubElement(trackET, 'artists')
+                trackETArtist.set('count', str(len(track['artists'])))
+                for artist in track['artists']:
+                    a = ET.SubElement(trackETArtist, 'artist')
+                    a.text = artist['name']
                 trackETTime = ET.SubElement(trackET, 'time')
                 trackETPlaylists = ET.SubElement(trackET, 'playlists')
                 trackETPlaylists.set('count', str(len(current_playlists)))
@@ -78,14 +83,13 @@ class SpotifyListener():
                 trackET.set('downloaded', 'False')
                 trackET.set('when', datetime.datetime.now().strftime("%d %B %Y"))
                 trackETName.text = track['name']
-                trackETArtist.text = track['artists'][0]['name']
                 millis = int(track['duration_ms'])
                 seconds = (millis / 1000) % 60
                 seconds = int(seconds)
                 minutes = (millis / (1000 * 60)) % 60
                 minutes = int(minutes)
                 trackETTime.text = '%02d:%02d' % (minutes, seconds)
-                self.list_of_tracks.append(Track(track['id'], track['name'], track['artists'][0]['name'], '%02d:%02d' % (minutes, seconds), False, current_playlists, datetime.datetime.now().strftime("%d %B %Y")))
+                self.list_of_tracks.append(Track(track['id'], track['name'], [artist['name'] for artist in track['artists']], '%02d:%02d' % (minutes, seconds), False, current_playlists, datetime.datetime.now().strftime("%d %B %Y")))
 
         self.root.set('count', str(len(self.list_of_tracks)))
         self.indent(self.root)

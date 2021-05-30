@@ -23,11 +23,11 @@ class Track:
             name = name.replace(key, slovar[key])
         return name
 
-
     def to_mp3_name(self):
+        artist = self.artists[0]
         if len(self.artists) > 1:
-            artist = self.artists[0] + ' feat. ' + ', '.join(self.artists[1:])
-        return self.transliterate(f'{self.artist} - {self.name}.mp3')
+            artist += ' feat. ' + ', '.join(self.artists[1:])
+        return self.transliterate(f'{artist} - {self.name}.mp3')
 
     def get_name(self):
         return f'{self.artists[0]} - {self.name}'    
