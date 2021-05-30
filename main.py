@@ -24,11 +24,12 @@ import webbrowser
 import configparser
 from work_xml import SpotifyListener
 
-if not os.path.exists('C:/ProgramData/Your Spoti'):
-    os.mkdir('C:/ProgramData/Your Spoti')
-CONFIG_PATH = 'C:/ProgramData/Your Spoti/config.ini'
-ALLTRACKS_PATH = 'C:/ProgramData/Your Spoti/allTracks.xml'
-CACHE_PATH = 'C:/ProgramData/Your Spoti/.cache'
+path_to_prData = 'C:/ProgramData/Your Spoti'
+if not os.path.exists(path_to_prData):
+    os.mkdir(path_to_prData)
+CONFIG_PATH = os.path.join(path_to_prData, 'config.ini')
+ALLTRACKS_PATH = os.path.join(path_to_prData, 'allTracks.xml')
+CACHE_PATH = os.path.join(path_to_prData, '.cache')
 
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
@@ -63,19 +64,32 @@ class TrackWidget(QWidget):
         self.labelname.setText(self.track.name)
         self.labelname.setObjectName('labelname')
 
-        self.labelartist = QLabel(self)
-        self.labelartist.setText(self.track.artist)
-        self.labelartist.setObjectName('labelartist')
+        self.labelartists = QLabel(self)
+        self.labelartists.setWordWrap(True)
+        self.labelartists.setText(', '.join(self.track.artists))
+        self.labelartists.setObjectName('labelartists')
 
         self.labelplaylists = QLabel(self)
         self.labelplaylists.setText(', '.join(self.track.playlists))
         self.labelplaylists.setObjectName('labelplaylists')
+        self.labelplaylists.setWordWrap(True)
 
         self.layoutnames.addWidget(self.labelname)
-        self.layoutnames.addWidget(self.labelartist)
+        self.layoutnames.addWidget(self.labelartists)
         self.layoutnames.addWidget(self.labelplaylists)
         self.layoutnames.setContentsMargins(0,0,0,0)
         
+        self.layuotDropPicture = QVBoxLayout()
+        self.layuotDropPicture.setObjectName('layoutdroppicture')
+        self.labeldroppicture = QLabel()
+        self.labeldroppicture.setStyleSheet('background-color: #ffffff;')
+        pixmap = QtGui.QPixmap('pictures/dropArrow.png')
+        self.labeldroppicture.setPixmap(pixmap)
+        self.labeldroppicture.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
+        # self.labeldroppicture.setFixedSize(QtCore.QSize(40,20))
+        self.labeldroppicture.hide()
+        self.layuotDropPicture.addWidget(self.labeldroppicture)
+        self.layuotDropPicture.setContentsMargins(10,0,6,0)
 
         self.layoutButtonsInfo = QVBoxLayout()
         self.layoutButtonsInfo.setObjectName('layoutbuttonsinfo')
@@ -102,8 +116,9 @@ class TrackWidget(QWidget):
 
 
         self.widgetlayout.addLayout(self.layoutnames)
+        self.widgetlayout.addLayout(self.layuotDropPicture)
         self.widgetlayout.addLayout(self.layoutButtonsInfo)
-        self.widgetlayout.setStretch(0, 50)
+        self.widgetlayout.setStretch(0,50)
         self.widgetlayout.setContentsMargins(6,3,6,3)
         
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
@@ -126,6 +141,7 @@ class TrackWidget(QWidget):
         webbrowser.open(self.links[sender.text()])
 
     def dragEnterEvent(self, event):
+        self.labeldroppicture.show()
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
         else:
@@ -134,13 +150,18 @@ class TrackWidget(QWidget):
     def dragMoveEvent(self, event):
         super(TrackWidget, self).dragMoveEvent(event)
 
+    def dragLeaveEvent(self, event):
+        self.labeldroppicture.hide()
+        super(TrackWidget, self).dragLeaveEvent(event)    
+
     def dropEvent(self, event):
+        self.labeldroppicture.hide()
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 self.changeFileProperties(url.path())
             event.acceptProposedAction()
         else:
-            super(TrackWidget,self).dropEvent(event)
+            super(TrackWidget,self).dropEvent(event)      
 
     def changeFileProperties(self, path):
         if path[-3:] != 'mp3':
@@ -439,6 +460,64 @@ class EnterSpotifyDataQDialog(QDialog, UI_EnterSpotifyDataQDialog):
         self.setupUI(self)
 
 
+class UI_FilterDialog(object):
+    def setupUI(self, Window, current_config):
+        Window.setWindowTitle('Select filters')
+        Window.resize(250, 300)
+        self.windowlayout = QVBoxLayout(Window)
+        self.config = current_config
+        self.playlistScrollArea = QScrollArea()
+        self.playlistScrollAreaContent = QWidget()
+        self.playlistScrollAreaContentLayout = QVBoxLayout(self.playlistScrollAreaContent)
+
+        for key, value in current_config.items():
+            if key not in ['not_selected', 'Only not downloaded']:
+                checkbox = QCheckBox()
+                checkbox.setText(key)
+                checkbox.setChecked(value)
+                checkbox.stateChanged.connect(lambda: self.set_filters())
+                self.playlistScrollAreaContentLayout.addWidget(checkbox)
+        self.playlistScrollArea.setWidget(self.playlistScrollAreaContent)
+
+        self.downloadedCheckbox = QCheckBox()
+        self.downloadedCheckbox.setText('Only not downloaded')
+        self.downloadedCheckbox.setChecked(self.config['Only not downloaded'])
+        self.downloadedCheckbox.stateChanged.connect(lambda: self.set_filters())
+
+        btnBox = QDialogButtonBox()
+        btnBox.setStandardButtons(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btnBox.accepted.connect(self.accept)
+        btnBox.rejected.connect(self.reject)
+
+        self.windowlayout.addWidget(self.playlistScrollArea)
+        self.windowlayout.addWidget(self.downloadedCheckbox)
+        self.windowlayout.addWidget(btnBox)
+
+    def set_filters(self):
+        sender = self.sender()
+        key = sender.text()
+        state = sender.checkState()
+        self.config[key] = True if state == QtCore.Qt.Checked else False
+        if key != 'Only not downloaded':
+            self.config['not_selected'] = True
+            for key, value in self.config.items():
+                if key not in ['not_selected', 'Only not downloaded']:
+                    if value:
+                        self.config['not_selected'] = False
+                        break
+
+    def get_genered_config(self):
+        return self.config                
+
+
+class FilterDialog(QDialog, UI_FilterDialog):
+    def __init__(self, current_config, parent=None):
+        super(FilterDialog, self).__init__(parent)
+        self.setupUI(self, current_config)
+
+
 class Ui_Form(object):
     def setupUI(self, MainWindow):
 
@@ -471,18 +550,6 @@ class Ui_Form(object):
         else:
             self.MainWindow.setWindowTitle('Your Spoti | ' + self.config['USER']['user_name'])    
 
-    def changeCheckStatus(self, state):
-        self.config['FILTERS']['only_downloaded'] = '1' if state == QtCore.Qt.Checked else '0'
-        with open(CONFIG_PATH, 'w') as configfile:
-            self.config.write(configfile)
-        for widget in self.scrollArea.widget().children():
-            if type(widget) != TrackWidget:
-                continue
-            if state == QtCore.Qt.Checked:
-                if widget.track.downloaded == True:
-                    widget.hide()
-            else:
-                widget.show()
 
     def createConfig(self):
         self.config['KEYS'] = {
@@ -494,7 +561,7 @@ class Ui_Form(object):
             'user_name': '',
         } 
         self.config['FILTERS'] = {
-            'only_downloaded': '0',
+            'only_not_downloaded': '0',
             'rename_always': '0',
             'replace_always': '0',
         }
@@ -523,7 +590,7 @@ class Ui_Form(object):
         gifLabel.setMinimumSize(QtCore.QSize(180, 85))
         gifLabel.setMaximumSize(QtCore.QSize(180, 85))
         gifLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.movie = QtGui.QMovie('loading.gif')
+        self.movie = QtGui.QMovie('pictures/loading.gif')
         gifLabel.setMovie(self.movie)
         horizontalLabel.addStretch(0)
         horizontalLabel.addWidget(gifLabel)
@@ -540,26 +607,33 @@ class Ui_Form(object):
         self.config['USER']['user_name'] = spl.user_name
         with open(CONFIG_PATH, 'w') as configfile:
             self.config.write(configfile)
+        self.filtersconfig = {playlist: False for playlist in spl.playlists.keys()}
+        self.filtersconfig['Without playlist'] = False
+        self.filtersconfig['Only not downloaded'] = True if self.config['FILTERS']['only_not_downloaded'] == '1' else False
+        self.filtersconfig['not_selected'] = True
         self.setNameOfWindow()    
+        del(self.movie)
         self.clearLayout(self.verticalLayout)
         self.scrollArea = scrollAreaTracks(spl, self.centralWidget) 
         self.filtersLayout = QHBoxLayout()
         self.filtersLayout.setContentsMargins(10, 0, 0, 8)
-        self.filterDownloaded = QCheckBox(self.centralWidget) 
-        self.filterDownloaded.setText('Only not downloaded')
-        self.filterDownloaded.setToolTip('Show only not downloaded') 
-        self.filterDownloaded.stateChanged.connect(self.changeCheckStatus)
-        self.filterDownloaded.setChecked(True if self.config['FILTERS']['only_downloaded'] == '1' else False)
+        self.buttonFilters = QPushButton(self.centralWidget)
+        self.buttonFilters.setToolTip('Choose what will be shown') 
+        self.buttonFilters.setText('Filters')
+        self.buttonFilters.clicked.connect(self.Filter_Config)
+        self.labelcounttracks = QLabel()
+        self.labelcounttracks.setToolTip('Number of tracks shown')
+        self.changeVisableTracks()
         self.buttonRenameReplace = QPushButton(self.centralWidget)
         self.buttonRenameReplace.setToolTip('Drag and Drop configuration') 
         self.setNameOfRenameReplace_button()
         self.buttonRenameReplace.clicked.connect(self.Rename_Replace_config)
-        self.filtersLayout.addWidget(self.filterDownloaded)
+        self.filtersLayout.addWidget(self.buttonFilters)
+        self.filtersLayout.addWidget(self.labelcounttracks)
         self.filtersLayout.addStretch(0)
         self.filtersLayout.addWidget(self.buttonRenameReplace)
         self.verticalLayout.addWidget(self.scrollArea)
         self.verticalLayout.addLayout(self.filtersLayout)
-        self.movie.stop()
         self.setMyCentralWidget()
 
     def setNameOfRenameReplace_button(self):
@@ -575,6 +649,44 @@ class Ui_Form(object):
         if window.exec_():
             self.config.read(CONFIG_PATH)
             self.setNameOfRenameReplace_button()
+
+    def Filter_Config(self):
+        window = FilterDialog(self.filtersconfig)
+        if window.exec_():
+            self.filtersconfig = window.get_genered_config()
+            self.config['FILTERS']['only_not_downloaded'] = '1' if self.filtersconfig['Only not downloaded'] else '0'
+            with open(CONFIG_PATH, 'w') as configfile:
+                self.config.write(configfile)
+            self.changeVisableTracks()    
+
+    def changeVisableTracks(self):
+        count = 0
+        for widget in self.scrollArea.widget().children():
+            if type(widget) != TrackWidget:
+                continue
+            showwidget = True
+
+            if not self.filtersconfig['not_selected']:
+                showwidget = False
+                if len(widget.track.playlists) != 0:    
+                    for playlist in widget.track.playlists:
+                        if self.filtersconfig[playlist]:
+                            showwidget = True
+                            break
+                else:
+                    if self.filtersconfig['Without playlist']:
+                        showwidget = True                
+
+            if self.filtersconfig['Only not downloaded']:
+                if widget.track.downloaded:
+                    showwidget = False
+
+            if showwidget:
+                widget.show()
+                count += 1
+            else:
+                widget.hide()
+        self.labelcounttracks.setText(f': {count}')        
 
     def setupSpotifyError(self):
         labelWarning = QLabel(self.centralWidget)
@@ -657,7 +769,7 @@ if __name__ == '__main__':
         '''
     app = QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
-    app.setWindowIcon(QtGui.QIcon('spotiApp.ico'))
+    app.setWindowIcon(QtGui.QIcon('pictures/spotiApp.ico'))
     ex = Main()
     ex.show()
     sys.exit(app.exec_()) 

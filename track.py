@@ -1,8 +1,8 @@
 class Track:
-    def __init__(self, track_id, name, artist, time, downloaded, playlists, date):
+    def __init__(self, track_id, name, artists, time, downloaded, playlists, date):
         self.track_id = track_id
         self.name = name
-        self.artist = artist
+        self.artists = artists
         self.time = time
         self.downloaded = True if downloaded == 'True' else False
         self.playlists = playlists
@@ -25,10 +25,12 @@ class Track:
 
 
     def to_mp3_name(self):
+        if len(self.artists) > 1:
+            artist = self.artists[0] + ' feat. ' + ', '.join(self.artists[1:])
         return self.transliterate(f'{self.artist} - {self.name}.mp3')
 
     def get_name(self):
-        return f'{self.artist} - {self.name}'    
+        return f'{self.artists[0]} - {self.name}'    
 
 
 
