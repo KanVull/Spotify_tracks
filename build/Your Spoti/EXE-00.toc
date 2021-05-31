@@ -46,7 +46,7 @@
  [],
  False,
  False,
- 1622389440,
+ 1622490725,
  [('runw.exe',
    'f:\\python\\spotify_tracks\\env\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit\\runw.exe',
    'EXECUTABLE')])
