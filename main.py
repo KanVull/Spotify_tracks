@@ -22,14 +22,9 @@ import sys
 import pyperclip
 import webbrowser
 import configparser
+import socket
+from contextlib import closing
 from work_xml import SpotifyListener
-
-path_to_prData = 'C:/ProgramData/Your Spoti'
-if not os.path.exists(path_to_prData):
-    os.mkdir(path_to_prData)
-CONFIG_PATH = os.path.join(path_to_prData, 'config.ini')
-ALLTRACKS_PATH = os.path.join(path_to_prData, 'allTracks.xml')
-CACHE_PATH = os.path.join(path_to_prData, '.cache')
 
 def resource_path(relative_path):
     try:
@@ -37,6 +32,20 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+def find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+path_to_prData = 'C:/ProgramData/Your Spoti'
+if not os.path.exists(path_to_prData):
+    os.mkdir(path_to_prData)
+CONFIG_PATH = os.path.join(path_to_prData, 'config.ini')
+ALLTRACKS_PATH = os.path.join(path_to_prData, 'allTracks.xml')
+CACHE_PATH = os.path.join(path_to_prData, '.cache')
+FREE_PORT = str(find_free_port())
 
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
@@ -91,11 +100,9 @@ class TrackWidget(QWidget):
         self.layuotDropPicture = QVBoxLayout()
         self.layuotDropPicture.setObjectName('layoutdroppicture')
         self.labeldroppicture = QLabel()
+        self.labeldroppicture.setPixmap(QtGui.QPixmap(resource_path('pictures/dropArrowBlack.png')))
         self.labeldroppicture.setStyleSheet('background-color: #ffffff;')
-        pixmap = QtGui.QPixmap(resource_path('pictures/dropArrowBlack.png'))
-        self.labeldroppicture.setPixmap(pixmap)
         self.labeldroppicture.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter)
-        # self.labeldroppicture.setFixedSize(QtCore.QSize(40,20))
         self.labeldroppicture.hide()
         self.layuotDropPicture.addWidget(self.labeldroppicture)
         self.layuotDropPicture.setContentsMargins(10,0,6,0)
@@ -419,9 +426,9 @@ class UI_EnterSpotifyDataQDialog(object):
         self.client_id_LineEdit = QLineEdit()
         self.client_secret_LineEdit = QLineEdit()
         self.redirect_uri_LineEdit = QLineEdit()
-        self.redirect_uri_LineEdit.setText('http://localhost:8080')
+        self.redirect_uri_LineEdit.setText(f'http://localhost:{FREE_PORT}')
         hint = QLabel()
-        hint.setText('Add http://localhost:8080 in your spotify app in Redirect URL or change for your custom')
+        hint.setText(f'Add http://localhost:{FREE_PORT} in your spotify app in Redirect URL or change for your custom')
         hint.setWordWrap(True)
         formLayout.addRow('Client ID', self.client_id_LineEdit)
         formLayout.addRow('Client Secret', self.client_secret_LineEdit)
@@ -582,7 +589,7 @@ class Ui_Form(object):
         self.config['KEYS'] = {
             'client_id': '',
             'client_secret': '',
-            'redirect_uri': 'http://localhost:8080',
+            'redirect_uri': f'http://localhost:{FREE_PORT}',
         }
         self.config['USER'] = {
             'user_name': '',
