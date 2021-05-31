@@ -18,3 +18,4 @@ You must connect your spotify with this app
 * Added playlists filter
 * Added counter for shown tracks
 * Resize now works better
+* First launch give you a free port (fixed)
