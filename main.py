@@ -23,6 +23,7 @@ import pyperclip
 import webbrowser
 import configparser
 import socket
+import shutil
 from contextlib import closing
 from work_xml import SpotifyListener
 
@@ -257,6 +258,7 @@ class scrollAreaTracks(QScrollArea):
         self.scrollAreaWidgetContentsLayout.setSpacing(0)
         for track in self.spl.list_of_tracks:
             self.scrollAreaWidgetContentsLayout.addWidget(TrackWidget(track))
+        self.scrollAreaWidgetContentsLayout.addStretch(0)
         self.setWidget(self.scrollAreaWidgetContents)
 
 
@@ -286,8 +288,8 @@ def rename(filename, track):
     os.rename(filename[1:], new_path)
 
 def replace(filename, track):
-    folder = str(QFileDialog.getExistingDirectory(None, "Select Directory"))
-    os.replace(filename[1:], folder + '/' + track.to_mp3_name())
+    folder = str(QFileDialog.getExistingDirectory(None, 'Select Directory | ' + ', '.join(track.playlists)))
+    shutil.move(filename[1:], folder + '/' + track.to_mp3_name())
 
 
 class UI_ReplacingWindow(object):
