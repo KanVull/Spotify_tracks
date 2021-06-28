@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
 )
 import os
+import logging
 import sys
 import pyperclip
 import webbrowser
@@ -25,6 +26,7 @@ import configparser
 import socket
 import shutil
 from contextlib import closing
+from loggerWriter import LoggerWriter
 from work_xml import SpotifyListener
 
 def resource_path(relative_path):
@@ -40,13 +42,6 @@ def find_free_port():
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
 
-path_to_prData = 'C:/ProgramData/Your Spoti'
-if not os.path.exists(path_to_prData):
-    os.mkdir(path_to_prData)
-CONFIG_PATH = os.path.join(path_to_prData, 'config.ini')
-ALLTRACKS_PATH = os.path.join(path_to_prData, 'allTracks.xml')
-CACHE_PATH = os.path.join(path_to_prData, '.cache')
-FREE_PORT = str(find_free_port())
 
 class TrackWidget(QWidget):
     def __init__(self, track, parent=None):
@@ -777,6 +772,21 @@ class Main(QMainWindow, Ui_Form):
 
 
 if __name__ == '__main__':
+    path_to_prData = 'C:/ProgramData/Your Spoti'
+    if not os.path.exists(path_to_prData):
+        os.mkdir(path_to_prData)
+    CONFIG_PATH = os.path.join(path_to_prData, 'config.ini')
+    ALLTRACKS_PATH = os.path.join(path_to_prData, 'allTracks.xml')
+    CACHE_PATH = os.path.join(path_to_prData, '.cache')
+    FREE_PORT = str(find_free_port())
+
+    logging.basicConfig(
+        filename=os.path.join(path_to_prData, 'logging_file.log')
+        )
+    log = logging.getLogger(__name__)
+    sys.stdout = LoggerWriter(log.info)
+    sys.stderr = LoggerWriter(log.warning)
+
     styleWidget = '''
             #scrollarea, #trackwidget, #listwidget {
                 background-color: #ffffff;
@@ -803,6 +813,7 @@ if __name__ == '__main__':
                 text-align: right;
             }
         '''
+
     app = QApplication(sys.argv)
     app.setStyleSheet(styleWidget)
     app.setWindowIcon(QtGui.QIcon(resource_path('pictures/spotiApp.ico')))
